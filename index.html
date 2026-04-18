@@ -1046,7 +1046,7 @@
       return;
     }
 
-    const { data: signed } = await sb.storage.from('kreis-faces').createSignedUrl(path, 3600);
+    const { data: signed } = await sb.storage.from('kreis-faces').createSignedUrl(path, 7200);
     if (!signed?.signedUrl) {
       fb.innerHTML = '<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Signed-URL-Fehler.</div>';
       return;
@@ -1064,7 +1064,10 @@
   }
 
   async function composeInvite(event) {
-    const valid = composeGuests.filter(g => g.signed_url && g.name);
+    // Frozen snapshot gegen Race (User editiert während fetch)
+    const valid = Object.freeze(composeGuests.filter(g => g.signed_url && g.name).map(g => ({
+      signed_url: g.signed_url, name: g.name, height_cm: g.height_cm,
+    })));
     if (valid.length === 0) return;
 
     const fb = document.getElementById('compose-feedback');
@@ -1076,19 +1079,22 @@
     btnText.innerHTML = 'Claude denkt… Gemini Pro generiert 4 Szenen… (~30-60 Sek)';
     fb.innerHTML = '<div class="bg-surface-highest rounded-2xl px-4 py-3 text-sm flex items-center gap-2"><span class="sparkle-pulse">✨</span><span>Das kann bis zu einer Minute dauern. Bleib da.</span></div>';
 
+    // Heights: nur senden wenn ALLE gesetzt sind (sonst undefined)
+    const heights = valid.map(g => g.height_cm);
+    const allHeights = heights.every(h => typeof h === 'number' && h > 0);
+
     try {
       const resp = await fetch(COMPOSE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
           'apikey': SUPABASE_KEY,
         },
         body: JSON.stringify({
           event_id: event.id,
           face_urls: valid.map(g => g.signed_url),
           user_names: valid.map(g => g.name),
-          user_heights_cm: valid.map(g => g.height_cm).every(h => h) ? valid.map(g => g.height_cm) : undefined,
+          user_heights_cm: allHeights ? heights : undefined,
         }),
       });
 
@@ -1126,8 +1132,9 @@
     const result = document.getElementById('compose-result');
     if (!result) return;
     const allScenes = plan.scenes || [];
-    const shown = allScenes.filter(s => s.image_url && s.shown !== false);
-    const hidden = allScenes.filter(s => s.image_url && s.shown === false);
+    // shown === true: Identity-Check bestanden. Default: zeige nicht (strict)
+    const shown = allScenes.filter(s => s.image_url && s.shown === true);
+    const hidden = allScenes.filter(s => s.image_url && s.shown !== true);
     const failed = allScenes.filter(s => !s.image_url);
 
     result.innerHTML = `
@@ -1246,7 +1253,7 @@
     const { data } = await sb.from('kreis_generated')
       .select('*')
       .eq('event_id', eventId)
-      .in('kind', ['song', 'song_lyrics'])
+      .eq('kind', 'song')
       .order('created_at', { ascending: false })
       .limit(1);
     return data?.[0] || null;
@@ -1270,15 +1277,27 @@
   function startSongPolling(event) {
     if (songPollInterval) clearInterval(songPollInterval);
     let attempts = 0;
-    songPollInterval = setInterval(async () => {
+    const MAX_ATTEMPTS = 40; // 10 Min (40 × 15s)
+    songPollInterval = setInterval(() => {
       attempts++;
-      if (attempts > 20) { clearInterval(songPollInterval); songPollInterval = null; return; }
-      const row = await loadLatestSong(event.id);
-      if (row && (row.url || row.meta?.suno_status === 'done')) {
+      if (attempts > MAX_ATTEMPTS) {
         clearInterval(songPollInterval);
         songPollInterval = null;
-        renderSongResult(songRowToData(row));
+        return;
       }
+      // Error-Handling: async-in-setInterval braucht try/catch
+      (async () => {
+        try {
+          const row = await loadLatestSong(event.id);
+          if (row && (row.url || row.meta?.suno_status === 'done')) {
+            clearInterval(songPollInterval);
+            songPollInterval = null;
+            renderSongResult(songRowToData(row));
+          }
+        } catch (err) {
+          console.warn('[kreis] song-poll error:', err);
+        }
+      })();
     }, 15000);
   }
 
@@ -1654,24 +1673,26 @@
     btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">hourglass_top</span><span>lade ffmpeg.wasm (24 MB)…</span>';
 
     try {
-      if (!window.FFmpeg) {
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js';
-          s.onload = resolve; s.onerror = reject;
-          document.head.appendChild(s);
-        });
-        await new Promise((resolve, reject) => {
-          const s = document.createElement('script');
-          s.src = 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js';
-          s.onload = resolve; s.onerror = reject;
-          document.head.appendChild(s);
-        });
+      // Load ffmpeg.wasm scripts once (with timeout)
+      const loadScript = (src) => new Promise((resolve, reject) => {
+        if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = resolve;
+        s.onerror = () => reject(new Error(`Script load failed: ${src}`));
+        document.head.appendChild(s);
+        setTimeout(() => reject(new Error('Script timeout')), 60000);
+      });
+
+      if (!window.FFmpegWASM) {
+        await loadScript('https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js');
+        await loadScript('https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js');
       }
 
-      const { FFmpeg } = window.FFmpegWASM || window.FFmpeg;
-      const { fetchFile } = window.FFmpegUtil || {};
-      const ffmpeg = new FFmpeg();
+      // In ffmpeg@0.12.x ist der Global-Export `window.FFmpegWASM`
+      const FFmpegCtor = window.FFmpegWASM?.FFmpeg || window.FFmpeg?.FFmpeg;
+      if (!FFmpegCtor) throw new Error('ffmpeg.wasm konnte nicht geladen werden');
+      const ffmpeg = new FFmpegCtor();
       btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">download</span><span>ffmpeg core (~24 MB)…</span>';
       await ffmpeg.load({
         coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',

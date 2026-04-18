@@ -2,158 +2,157 @@
 
 **Arbeitstitel:** KREIS
 **Tagline:** *Für enge Menschen — gemeinsam entscheiden, ob wir was machen.*
-**Gestartet:** 18.04.2026 (parallel zu Mutter-Geburtstag, nach dem "scratch your own itch"-Frame-Shift)
+**Gestartet:** 18.04.2026 (scratch-your-own-itch an Mutters-Geburtstag-Vortag)
+**Stand dieser Doku:** 19.04.2026, V2-Release komplett
 
 ---
 
 ## Frame-Shift (der Kern)
 
-Ursprüngliche WECANDO-EXPERIENCE-Idee war "Million-User-Event-Marketplace". Die 5 Blocker (Two-Sided-Marketplace, Ticket-APIs, Payment-Splitting, Cold-Start, Facebook-API-Tod) haben das zum $5M-Startup gemacht — nicht machbar neben AU, kPTBS, ADHS-Diagnostik.
+Ursprünglich WECANDO-EXPERIENCE: Million-User-Event-Marketplace. Blocker: Two-Sided-Marketplace, Ticket-APIs, Payment-Splitting, Cold-Start, Facebook-API-Tod. Nicht machbar.
 
-**Umkehr:** Der Freundeskreis-Use-Case war nie Fallback. Er war immer der eigentliche Plan. Der Marketplace war der Fallback — falls es zu groß wird.
+**Umkehr:** Tool für engen Kreis ist nicht Fallback — war immer der eigentliche Plan. "Scratch your own itch" (Basecamp, Slack, Linear, Figma).
 
-**Jürgens Satz** (18.04.2026):
-> "Ich hab ja wenigstens das Produkt und kann es selbst mit meinen Freunden nutzen."
-
-Das ist der klügste Satz. "Scratch your own itch" ist das stärkste Product-Pattern (Basecamp, Slack, Linear, Figma, Notion, Loom). Du baust das Ding, das DU brauchst — wenn andere es auch wollen: Bonus.
+Jürgen 18.04.2026: *"Ich hab ja wenigstens das Produkt und kann es selbst mit meinen Freunden nutzen."*
 
 ---
 
-## Das Problem (echt)
+## Stand (19.04.2026) — V2 LIVE
 
-Event taucht auf (Konzert, Klettern, Festival, Kino, Party). Jemand schreibt "Hat jemand Bock?" in 3 verschiedene WhatsApp-Chats. 4 Leute antworten nicht. 1 sagt "vielleicht". 1 sagt "ich schau noch". Entscheidung versandet. **Regret.**
+- **URL:** https://1gassner.github.io/kreis/
+- **Repo:** https://github.com/1gassner/kreis (public, MIT)
+- **Backend:** Supabase `sgsufdxggvfgejwiclot` (eu-west-1)
+- **Pipeline:** Text → 4 AI-Scenes → Song → Video, alles in einem Flow
 
-Bestehende Tools:
-- **Doodle**: Zeit-Abstimmung, kein Event-Context
-- **Partiful / Luma**: näher dran, aber nicht deutsch, nicht ADHS-safe, keine AI-Magie
-- **WhatsApp-Polls**: Friktion (alle scrollen hoch), kein Persistent-Archiv
-- **Meetup**: öffentlich, nicht für enge Kreise
+### Features V1 (MVP, 18.04.2026 Nachmittag)
 
----
+1. **Natural Language Input** — Claude Haiku parsed freien Text zu Event (Titel, Ort, Datum, Freunde)
+2. **Voting** — 🟢 Dabei / 🟡 Vielleicht / 🔴 Nicht dabei + Note
+3. **Live-Refresh** 8s-Poll für Nicht-Creator
+4. **My Events** in localStorage (letzte 50)
+5. **WhatsApp-1-Klick-Share** mit `wa.me/?text=`
+6. **Event bearbeiten + löschen** (RLS-geschützt)
+7. **ICS-Kalender-Export** iOS-kompatibel
+8. **Web Share API** mit Clipboard-Fallback
+9. **PWA-Manifest** installierbar auf Homescreen
 
-## V1 — MVP (fertig 18.04.2026)
+### Features V2 (19.04.2026) — AI-Einladung
 
-### Status: LIVE
-- URL: https://1gassner.github.io/kreis/
-- Repo: https://github.com/1gassner/kreis
-- Backend: Supabase `sgsufdxggvfgejwiclot` (eu-west-1)
-- Edge Function: `kreis-parse-event` (Claude Haiku 4.5)
+**V2.1: Multi-Guest-Setup**
+- Bis zu 4 Personen pro Einladung
+- Pro Gast: Foto (5 MB max), Name, Größe (optional, für Proportionen)
+- LocalStorage-Persistenz der Gast-Profile pro Event
+- Face-Upload zu privatem Supabase-Storage-Bucket (`kreis-faces`), signed URLs (2h TTL)
 
-### Features
-1. **Natural Language Input** (Killer-Feature)
-   - "Klettern Reutlingen nächsten Samstag 15 Uhr mit Nino und Cindy"
-   - Claude Haiku parsed → strukturierte Event-Daten
-   - User confirmed/editiert Preview
-   - Cmd+Enter Shortcut
+**V2.2: AI-Scene-Generation (Edge Function `kreis-compose-invite` v3)**
+- Claude Haiku analysiert Event → bestimmt Event-Type + schreibt 4 Scene-Prompts + Event-Beschreibung + Song-Hook
+- 4× Gemini 3 Pro Image ("Nano Banana Pro") **parallel** (~30s total)
+- Identity-Preservation via Multi-Ref (bis 4 Faces/Person)
+- Position-Lock (erste Person links, zweite rechts)
+- Height-Info für korrekte Proportionen
+- No-Duplicates-Guard (`EXACTLY N persons, no clones`)
 
-2. **Voting**
-   - 🟢 Dabei · 🟡 Vielleicht · 🔴 Nicht dabei
-   - Optional Frei-Text-Note
-   - Live-Refresh alle 8s
-   - Keine Deadlines, keine Pushes, keine Shame-Mechanik (PDA-safe)
+**V2.3: Identity-Check**
+- Nach jedem Gemini-Output: Claude-Judge vergleicht Generated vs Reference
+- Score 0-10, bei < 6 → Retry mit verstärktem Prompt
+- Bei < 4 → Scene verworfen (nicht angezeigt)
+- Frontend zeigt Sternen-Badge pro Scene + avg_identity_score
 
-3. **Share**
-   - Clipboard-Copy-Button
-   - Link → WhatsApp-Share
-   - Kein App-Install nötig (PWA)
+**V2.4: Song-Composition (Edge Function `kreis-compose-song` v5)**
+- Claude Haiku schreibt Lyrics (deutsch, personalisiert mit Gast-Namen + Notes)
+- Style-Guesser aus Event-Titel (Prodigy → Big Beat, Klettern → Indie Rock, etc.)
+- Suno V4 Call mit `customMode` + `callBackUrl`
+- 2 Tracks pro Request (Suno-Default)
+- Async-Callback-Handler `kreis-suno-callback` speichert Audio-URLs in DB
 
-4. **Minimaler Footprint**
-   - Single-file HTML (~700 Zeilen, kein Build)
-   - Mobile-first, dark, ADHS-freundlich
-   - Kein User-Auth (Event-ID = Secret)
+**V2.5: Einladungs-Film**
+- HTML5-Slideshow-Player: 4 Scenes mit Ken-Burns-CSS + Song synchron
+- Fullscreen-Modal, Autoplay, Caption-Overlay, Progress-Bar
+- Shareable Link `?view=film` → öffnet direkt Film-Viewer
+- **MP4-Export via ffmpeg.wasm** client-side (720×960 H.264, 1-3 Min Render)
 
-### Tech-Stack
-- **Frontend:** Plain HTML/CSS/JS, Supabase-JS v2.39 via CDN
-- **Backend:** Supabase Postgres (Tabellen: `kreis_events`, `kreis_responses`)
-- **AI:** Claude Haiku 4.5 via Edge Function (`kreis-parse-event`)
-- **Hosting:** GitHub Pages (kostenlos, automatische SSL)
+### Kosten V2 pro Einladung
 
-### Kosten V1
-- Hosting: 0 €
-- Supabase: im Free Tier
-- Claude API: ~$0.0005 pro NL-Parse (1000 Events = 50 Cent)
+| Schritt | Tool | Kosten |
+|---------|------|--------|
+| NL-Parse | Claude Haiku | ~$0.0005 |
+| Scene-Plan | Claude Haiku | ~$0.001 |
+| 4× Scene-Gen | Gemini 3 Pro Image | ~$0.48 |
+| 4× Identity-Judge | Claude Haiku Vision | ~$0.02 |
+| Lyrics | Claude Haiku | ~$0.001 |
+| Song | Suno V4 | ~$0.10 |
+| Storage + Edge Functions | Supabase | ~$0.00 (Free Tier) |
+| **Total pro vollständige Einladung** | | **~$0.60** |
 
 ### Datenmodell
+
 ```sql
 kreis_events(id uuid, title, location, date_start, date_end, link, note, created_by, created_at, archived)
 kreis_responses(id uuid, event_id fk, user_name, response enum[yes,maybe,no], note, created_at, updated_at)
+kreis_faces(id uuid, event_id fk, user_name, storage_path, consent_given, created_at)
+  -- unique(event_id, user_name)
+kreis_generated(id uuid, event_id fk, kind enum[scene_image, face_swap, song, video], url, meta jsonb, created_at)
 ```
-RLS: anon kann lesen + schreiben. Event-ID ist der "Secret" (nicht geratbar).
+
+**Storage-Buckets:**
+- `kreis-faces` — privat, signed URLs (2h TTL)
+- `kreis-generated` — public, direkt via `<img>`/`<audio>` ladbar
+
+**RLS:** anon kann lesen + schreiben (Event-ID = Secret, kein Auth-Layer im MVP).
 
 ---
 
-## V2 — Der emotionale Kern (nach 24.04. / nach calm)
+## Edge Functions (Stand 19.04.2026)
 
-**Jürgens Worte (18.04.):**
-> "Die Einladung muss anhand der Fotos (Face von mir und Face von Freunden), inklusive Face-Swap und AI-Bildern (wir auf dem Event AI-simuliert als Einladungsslideshow mit Einladungs-Song bei Suno). Das ist eine wichtige Sache für mich."
+### Aktiv
 
-**Vision:**
+| Slug | Version | Zweck |
+|------|---------|-------|
+| `kreis-parse-event` | v4 | NL → Event-JSON (Claude Haiku) |
+| `kreis-compose-invite` | v3 | 4× Gemini Pro + Identity-Judge + Retry |
+| `kreis-compose-song` | v5 | Lyrics (Claude) + Song (Suno V4) |
+| `kreis-suno-callback` | v1 | Webhook für Suno-Fertigmeldung |
 
-```
-Event erstellt ("Klettern Reutlingen Sa, mit Nino + Cindy")
-  ↓
-Suno generiert 30-60s Einladungs-Song
-  ↓
-Gemini/FLUX generiert 4-6 Event-Szenen
-  ↓
-Replicate/Piapi Face-Swap: echte Gesichter auf Szenen
-  ↓
-ffmpeg/Luma: Slideshow mit Song → 30-60s Video
-  ↓
-Video-URL + Event-Link in WhatsApp
-  ↓
-Freunde sehen sich selbst schon → "Fuck ja, dabei"
-```
+### Deprecated (19.04.2026 disabled, 410 Gone)
 
-### Phasen
-
-| Phase | Was | Dauer |
-|-------|-----|-------|
-| 2a | Foto-Profile (jeder Freund registriert Gesicht, Supabase Storage, Consent-Checkbox) | 1 Nachmittag |
-| 2b | Face-Swap-Pipeline (Replicate API oder Piapi.ai) | 1-2 Tage |
-| 2c | AI-Szenen-Generierung (Gemini/FLUX mit Event-Context-Prompts) | 1 Tag |
-| 2d | Suno-Song-Integration (AVA hat `generate_music` Tool) | halber Tag |
-| 2e | Video-Slideshow-Rendering (ffmpeg oder Luma) | 1-2 Tage |
-| 2f | Share-Flow (Video-URL + Preview in WhatsApp) | halber Tag |
-
-**Total: ~1-2 Wochen Arbeit.** Nicht Nachmittag.
-
-### Kosten V2 pro Einladung
-- Suno: ~$0.10 (1 Song)
-- Gemini/FLUX: ~$0.04-0.10 (4-6 Bilder)
-- Replicate Face-Swap: ~$0.01 (pro Bild × Gesichter)
-- Luma/ffmpeg Video: ~$0.10-0.30
-- **Total: ~$0.30-0.60 pro Einladung.** 20 Einladungen/Monat = ~$10.
-
-### Datenschutz (kritisch)
-Freunde geben Jürgen ihr Gesicht → das ist hochsensibel. Braucht:
-- Explizite Opt-In pro Person
-- Löschung jederzeit (Supabase DELETE + Storage purge)
-- Kein Upload ohne Consent-Checkbox im UI
-- EU-Storage (Supabase eu-west-1 ✓)
-- Keine Weitergabe an Dritte (außer Face-Swap-Dienstleister mit DPA)
-- Transparenz: User sieht Liste seiner registrierten Bilder
+| Slug | Grund |
+|------|-------|
+| `kreis-face-swap` | Replicate-Face-Swap ersetzt durch Gemini Multi-Ref |
+| `kreis-generate-invite-image` | Einzel-Bild-Endpoint ersetzt durch `kreis-compose-invite` (4er-Batch) |
+| `kreis-env-check` | Debug-Endpoint leakte Secret-Prefixes, security-disabled |
 
 ---
 
-## V3 — Discovery (später, optional)
+## V3 — Zukunft (nicht gebaut, offen)
 
-Erst wenn V2 läuft und Bock nachkommt. Öffentliche Event-Feed-Seite mit lokalen Events (Hechingen, Reutlingen, Tübingen, Zollernalb). TikTok-artiger Swipe. Jürgen wählt Events, die er seinen Freunden vorschlagen will → auto-ins-KREIS.
+### Identity-LoRA pro Person (~$5 einmalig)
+- Replicate `ostris/flux-dev-lora-trainer`
+- 15-20 Fotos pro Person → Custom LoRA mit Trigger-Word
+- Inference via `black-forest-labs/flux-dev-lora` mit geladenem LoRA
+- Identity-Score erwartet 95%+ (vs aktuell 60-80%)
 
-Das ist dann **die** Expansion Richtung ursprüngliches WECANDO EXPERIENCE. Aber: Nur wenn V2 heilsam war, nicht stressig.
+### MP4-Server-Side-Rendering
+- Shotstack.io / Creatomate statt ffmpeg.wasm (schneller, zuverlässiger)
+- Template-basiert, Ken-Burns + Transitions + Audio
+- ~$0.01 pro Minute Output
+
+### Discovery-Feed (falls skalierbar)
+- Nur wenn V2 in realem Freundeskreis getestet und genutzt wird
+- Öffentliche Event-Feed-Seite mit lokalen Events (Hechingen, Reutlingen, Tübingen)
+- Swipe-basierte Discovery → in eigenen Kreis übernehmen
 
 ---
 
-## Nicht-Ziele (wichtig!)
+## Nicht-Ziele (explizit)
 
-KREIS wird **nie**:
+KREIS wird nie:
 - Payment-Splitting (Splitwise existiert)
-- Tickets verkaufen (das ist Ticketing-Business)
-- Facebook-/Meta-Integration (die APIs sind tot)
+- Tickets verkaufen (Ticketing-Business)
+- Facebook-/Meta-Integration (APIs sind tot)
 - Gamification / Streaks / Shame-Mechaniken (PDA-Trigger)
-- Push-Reminder an Freunde ohne Opt-In (Anti-Spam)
-- Öffentliches Profil (Anti-Stalker)
-- Matching / Algorithmus / Empfehlungen für V1-V2
+- Push-Reminder ohne Opt-In (Anti-Spam)
+- Öffentliches Profil ohne Opt-In (Anti-Stalker)
+- Matching / Algorithmus-Empfehlungen für V1-V2
 
 ---
 
@@ -162,10 +161,10 @@ KREIS wird **nie**:
 KREIS ist mehr als ein Tool. Es ist:
 - **Aktive Freundschaftspflege** in Zeit, wo Jürgen sich wegen AU + Diagnosen oft zurückzieht
 - **Beweis**, dass er bauen kann, wenn's aus Liebe ist statt aus Druck
-- **Geschenk** an Nino, Cindy, Thomas, Rapha, Marc — Menschen, die ihm wichtig sind
-- **Anti-Isolation-Werkzeug** — macht das "auf die Freunde zugehen" leichter, weniger Overhead
+- **Geschenk** an Nino, Cindy, Thomas, Rapha, Marc
+- **Anti-Isolation-Werkzeug** — macht "auf die Freunde zugehen" leichter
 
-**Nicht:** ein weiteres Business-Projekt, das Revenue bringen muss. Wenn nur Jürgen + 5 Freunde es nutzen = **voller Erfolg.**
+Wenn nur Jürgen + 5 Freunde es nutzen = **voller Erfolg.** Kein Business-Projekt.
 
 ---
 
@@ -174,6 +173,6 @@ KREIS ist mehr als ein Tool. Es ist:
 - **Repo:** https://github.com/1gassner/kreis
 - **Live:** https://1gassner.github.io/kreis/
 - **Supabase:** sgsufdxggvfgejwiclot.supabase.co
-- **Edge Function:** kreis-parse-event
-- **Lokale Dev:** `http://localhost:8094/` (launch.json: `kreis`)
-- **CLAUDE.md Eintrag:** `project_kreis_app.md` (Memory-System)
+- **Test-Event (Prodigy Stuttgart):** https://1gassner.github.io/kreis/?event=bb6b7f8b-c3fe-4596-ada5-b768f9256dd4
+- **Memory:** `project_kreis_app.md`
+- **CLAUDE.md:** siehe "Technische Referenzen" → KREIS-Zeile

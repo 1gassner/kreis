@@ -1,16 +1,13 @@
-// kreis-compose-song: Personalisierte Song-Lyrics via Claude Haiku + optional Suno API
-// Deploy: supabase functions deploy kreis-compose-song --no-verify-jwt
-//
-// Env vars needed:
-//   ANTHROPIC_API_KEY  — für Claude Haiku Lyrics
-//   SUNO_API_KEY       — optional, für automatische Song-Generierung (sunoapi.org)
+// kreis-compose-song v5: Lyrics via Claude Haiku + Suno V4 (mit callback)
+// - kind standardized auf 'song' (statt split 'song_lyrics' / 'song')
+// - suno_debug nur noch bei Fehler exposed
+// - fail-fast bei fehlenden Secrets
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 const json = (body: unknown, status = 200) =>
@@ -26,32 +23,22 @@ Deno.serve(async (req) => {
     const { event_id, guest_names, style_hint } = await req.json();
     if (!event_id) return json({ error: "event_id required" }, 400);
 
-    // --- Supabase: Event + Responses laden ---
     const sb = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
     const { data: event, error: evErr } = await sb
-      .from("kreis_events")
-      .select("*")
-      .eq("id", event_id)
-      .single();
+      .from("kreis_events").select("*").eq("id", event_id).single();
     if (evErr || !event) return json({ error: "Event not found" }, 404);
 
     const { data: responses } = await sb
-      .from("kreis_responses")
-      .select("*")
-      .eq("event_id", event_id)
-      .order("created_at", { ascending: true });
+      .from("kreis_responses").select("*").eq("event_id", event_id).order("created_at", { ascending: true });
 
-    // --- Gäste-Kontext ---
     const guests: { name: string; response: string; note: string | null }[] = [];
     if (guest_names?.length) {
       for (const name of guest_names) {
-        const r = responses?.find(
-          (r: any) => r.user_name.toLowerCase() === name.toLowerCase(),
-        );
+        const r = responses?.find((r: any) => r.user_name.toLowerCase() === name.toLowerCase());
         guests.push({ name, response: r?.response || "unknown", note: r?.note || null });
       }
     } else if (responses?.length) {
@@ -70,7 +57,6 @@ Deno.serve(async (req) => {
 
     const finalStyle = style_hint || guessStyle(event.title, event.note);
 
-    // --- Claude Haiku: Lyrics generieren ---
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!anthropicKey) return json({ error: "ANTHROPIC_API_KEY not set" }, 500);
 
@@ -89,7 +75,7 @@ ${guestBlock || "- Noch keine"}
 STYLE: ${finalStyle}
 
 REGELN:
-1. Deutsch (außer Style verlangt Englisch, z.B. englische Band)
+1. Deutsch (außer Style verlangt Englisch)
 2. Jeden Gast mindestens 1x namentlich erwähnen, mit Bezug zu Note/Anmerkung
 3. Eingängiger Refrain passend zum Event
 4. Humor und Insider-Vibes erwünscht
@@ -97,7 +83,7 @@ REGELN:
 6. Max ~150 Wörter (ca. 60 Sekunden gesungen)
 7. Gib einen "Style of Music"-Tag für Suno (1 Zeile)
 
-Antworte NUR mit diesem JSON:
+Antworte NUR mit diesem JSON ohne Markdown-Fences:
 {"lyrics":"...kompletter Text mit [Tags]...","style_of_music":"...","title":"...kurzer Titel..."}`;
 
     const claudeResp = await fetch("https://api.anthropic.com/v1/messages", {
@@ -109,7 +95,7 @@ Antworte NUR mit diesem JSON:
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
+        max_tokens: 1200,
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -123,76 +109,88 @@ Antworte NUR mit diesem JSON:
 
     let lyrics: string, styleOfMusic: string, songTitle: string;
     try {
-      // Strip Markdown code fences first (```json ... ``` or ``` ... ```)
       const stripped = raw
         .replace(/^\s*```(?:json)?\s*/i, "")
         .replace(/\s*```\s*$/, "")
         .trim();
-      // Find the outermost JSON object
       const first = stripped.indexOf("{");
       const last = stripped.lastIndexOf("}");
       if (first < 0 || last < 0) throw new Error("no JSON");
       const p = JSON.parse(stripped.slice(first, last + 1));
-      lyrics = p.lyrics || raw;
-      styleOfMusic = p.style_of_music || finalStyle;
-      songTitle = p.title || `${event.title} Song`;
+      if (typeof p.lyrics !== "string" || !p.lyrics.trim()) throw new Error("no lyrics");
+      lyrics = p.lyrics;
+      styleOfMusic = typeof p.style_of_music === "string" ? p.style_of_music : finalStyle;
+      songTitle = typeof p.title === "string" ? p.title : `${event.title} Song`;
     } catch {
       lyrics = raw;
       styleOfMusic = finalStyle;
       songTitle = `${event.title} Song`;
     }
 
-    // --- Optional: Suno API (sunoapi.org custom_generate) ---
-    const sunoKey = Deno.env.get("SUNO_API_KEY");
-    let sunoTaskId: string | null = null;
-    let sunoStatus = "no_api_key";
-
-    if (sunoKey) {
-      try {
-        const sunoResp = await fetch(
-          "https://apibox.erweima.ai/api/v1/generate",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${sunoKey}`,
-            },
-            body: JSON.stringify({
-              prompt: lyrics,
-              style: styleOfMusic,
-              title: songTitle,
-              customMode: true,
-              instrumental: false,
-              model: "V4",
-            }),
-          },
-        );
-        if (sunoResp.ok) {
-          const d = await sunoResp.json();
-          sunoTaskId = d.data?.taskId || null;
-          sunoStatus = sunoTaskId ? "generating" : "no_task_id";
-        } else {
-          sunoStatus = `suno_http_${sunoResp.status}`;
-        }
-      } catch (e) {
-        sunoStatus = `suno_error: ${(e as Error).message}`;
-      }
-    }
-
-    // --- Speichern in kreis_generated ---
-    await sb.from("kreis_generated").insert({
+    // Insert row with kind='song' (standardized) BEFORE Suno call to get gen_id for callback
+    const { data: gen } = await sb.from("kreis_generated").insert({
       event_id,
-      kind: "song_lyrics",
+      kind: "song",
       url: null,
       meta: {
         lyrics,
         style_of_music: styleOfMusic,
         song_title: songTitle,
-        suno_task_id: sunoTaskId,
-        suno_status: sunoStatus,
+        suno_task_id: null,
+        suno_status: "pending",
         guest_names: guests.map((g) => g.name),
       },
-    });
+    }).select().single();
+
+    // Suno API (optional)
+    const sunoKey = Deno.env.get("SUNO_API_KEY");
+    let sunoTaskId: string | null = null;
+    let sunoStatus = "no_api_key";
+    let sunoDebug: Record<string, unknown> | null = null;
+
+    if (sunoKey) {
+      try {
+        const callbackUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/kreis-suno-callback?gen_id=${gen?.id || ""}`;
+        const sunoResp = await fetch("https://apibox.erweima.ai/api/v1/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${sunoKey}` },
+          body: JSON.stringify({
+            prompt: lyrics,
+            style: styleOfMusic,
+            title: songTitle,
+            customMode: true,
+            instrumental: false,
+            model: "V4",
+            callBackUrl: callbackUrl,
+          }),
+        });
+        const sunoJson = await sunoResp.json().catch(() => ({}));
+        if (sunoResp.ok && (sunoJson as any)?.code === 200) {
+          sunoTaskId = (sunoJson as any).data?.taskId || null;
+          sunoStatus = sunoTaskId ? "generating" : "no_task_id";
+        } else {
+          sunoStatus = `suno_http_${sunoResp.status}`;
+          sunoDebug = { status: sunoResp.status, body: sunoJson };
+        }
+      } catch (e) {
+        sunoStatus = `suno_error`;
+        sunoDebug = { error: (e as Error).message };
+      }
+    }
+
+    // Update row with Suno result
+    if (gen?.id) {
+      await sb.from("kreis_generated").update({
+        meta: {
+          lyrics,
+          style_of_music: styleOfMusic,
+          song_title: songTitle,
+          suno_task_id: sunoTaskId,
+          suno_status: sunoStatus,
+          guest_names: guests.map((g) => g.name),
+        },
+      }).eq("id", gen.id);
+    }
 
     return json({
       lyrics,
@@ -200,16 +198,16 @@ Antworte NUR mit diesem JSON:
       song_title: songTitle,
       suno_task_id: sunoTaskId,
       suno_status: sunoStatus,
+      generated_id: gen?.id,
+      ...(sunoDebug && sunoStatus.startsWith("suno_") ? { suno_debug: sunoDebug } : {}),
     });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }
 });
 
-// --- Style-Guesser ---
 function guessStyle(title: string, note: string | null): string {
   const t = `${title} ${note || ""}`.toLowerCase();
-
   const map: [RegExp, string][] = [
     [/prodigy/, "Electronic, Big Beat, Rave, aggressive, 140 BPM"],
     [/rammstein/, "Industrial Metal, German vocals, heavy, 130 BPM"],
@@ -233,9 +231,6 @@ function guessStyle(title: string, note: string | null): string {
     [/party|feier|geburtstag/, "Pop, dance, German party, 128 BPM"],
     [/ski|snow|winter/, "Après-Ski, Schlager-Pop, party, 135 BPM"],
   ];
-
-  for (const [re, style] of map) {
-    if (re.test(t)) return style;
-  }
+  for (const [re, style] of map) if (re.test(t)) return style;
   return "Pop, catchy, German vocals, feel-good, 120 BPM";
 }
