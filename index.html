@@ -1145,22 +1145,60 @@
   // ============================
   const SONG_URL = `${SUPABASE_URL}/functions/v1/kreis-compose-song`;
 
+  let songPollInterval = null;
+
   async function initSongSection(event) {
     const btn = document.getElementById('song-btn');
     if (!btn) return;
     btn.addEventListener('click', () => composeSong(event));
 
-    // Check ob schon Lyrics existieren
-    const { data: existing } = await sb.from('kreis_generated')
+    const row = await loadLatestSong(event.id);
+    if (row) {
+      renderSongResult(songRowToData(row));
+      if (!row.url && row.meta?.suno_status === 'generating') {
+        startSongPolling(event);
+      }
+    }
+  }
+
+  async function loadLatestSong(eventId) {
+    const { data } = await sb.from('kreis_generated')
       .select('*')
-      .eq('event_id', event.id)
-      .eq('kind', 'song_lyrics')
+      .eq('event_id', eventId)
+      .in('kind', ['song', 'song_lyrics'])
       .order('created_at', { ascending: false })
       .limit(1);
+    return data?.[0] || null;
+  }
 
-    if (existing?.[0]?.meta?.lyrics) {
-      renderSongResult(existing[0].meta);
-    }
+  function songRowToData(row) {
+    const m = row.meta || {};
+    return {
+      lyrics: m.lyrics || '',
+      style_of_music: m.style_of_music || '',
+      song_title: m.song_title || 'Song',
+      suno_status: m.suno_status || (row.url ? 'done' : 'no_api_key'),
+      suno_task_id: m.suno_task_id,
+      audio_url: row.url || m.suno_tracks?.[0]?.audio_url || null,
+      image_url: m.image_url || m.suno_tracks?.[0]?.image_url || null,
+      alt_audio_url: m.alt_audio_url || m.suno_tracks?.[1]?.audio_url || null,
+      duration_sec: m.duration_sec,
+    };
+  }
+
+  function startSongPolling(event) {
+    if (songPollInterval) clearInterval(songPollInterval);
+    let attempts = 0;
+    songPollInterval = setInterval(async () => {
+      attempts++;
+      if (attempts > 20) { clearInterval(songPollInterval); songPollInterval = null; return; }
+      const row = await loadLatestSong(event.id);
+      if (row && (row.url || row.meta?.suno_status === 'done')) {
+        clearInterval(songPollInterval);
+        songPollInterval = null;
+        renderSongResult(songRowToData(row));
+      }
+    }, 15000);
   }
 
   async function composeSong(event) {
@@ -1203,6 +1241,10 @@
       renderSongResult(data);
       btn.disabled = false;
       btnText.textContent = '🎵 Neue Lyrics generieren';
+      // Start Polling falls Suno noch generiert
+      if (data.suno_status === 'generating') {
+        startSongPolling(event);
+      }
     } catch (err) {
       fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Netz-Fehler: ${esc(err.message || err)}</div>`;
       btn.disabled = false;
@@ -1218,35 +1260,94 @@
     const style = data.style_of_music || '';
     const title = data.song_title || 'Song';
     const sunoStatus = data.suno_status || 'no_api_key';
+    const audioUrl = data.audio_url;
+    const altAudioUrl = data.alt_audio_url;
+    const imageUrl = data.image_url;
+    const durationSec = data.duration_sec;
 
-    // Lyrics formatieren: [Tags] fett machen
     const formattedLyrics = esc(lyrics)
       .replace(/\[(.*?)\]/g, '<span class="text-[#f59e0b] font-semibold">[$1]</span>')
       .replace(/\n/g, '<br>');
 
+    const mmss = (s) => {
+      if (!s) return '';
+      const m = Math.floor(s / 60);
+      const ss = Math.floor(s % 60).toString().padStart(2, '0');
+      return `${m}:${ss}`;
+    };
+
     result.innerHTML = `
       <div class="bg-surface-high rounded-2xl p-4">
-        <div class="flex justify-between items-start mb-3">
-          <h3 class="font-medium text-sm">${esc(title)}</h3>
-          <span class="text-[10px] text-on-surface-variant bg-surface-highest px-2 py-1 rounded-full">${esc(style)}</span>
-        </div>
-        <div class="bg-surface-highest rounded-xl p-4 text-sm leading-relaxed font-light max-h-[400px] overflow-y-auto">
-          ${formattedLyrics}
-        </div>
-        <div class="flex gap-2 mt-3">
-          <button id="copy-lyrics-btn" class="flex-1 bg-surface-highest hover:bg-surface-bright text-sm font-medium rounded-xl py-2.5 transition-colors border border-outline-variant/20 flex items-center justify-center gap-1.5">
-            <span class="material-symbols-outlined text-[16px]">content_copy</span>
+        ${audioUrl ? `
+          <div class="flex gap-3 mb-4">
+            ${imageUrl ? `
+              <img src="${esc(imageUrl)}" alt="Cover" class="w-20 h-20 rounded-xl object-cover shrink-0 shadow-lg">
+            ` : `
+              <div class="w-20 h-20 rounded-xl bg-gradient-to-br from-[#f59e0b] to-[#ef4444] flex items-center justify-center shrink-0 shadow-lg">
+                <span class="text-3xl">🎵</span>
+              </div>
+            `}
+            <div class="flex-1 min-w-0 flex flex-col justify-center">
+              <h3 class="font-medium text-sm truncate">${esc(title)}</h3>
+              <p class="text-xs text-on-surface-variant truncate">${esc(style)}</p>
+              ${durationSec ? `<p class="text-[11px] text-on-surface-variant mt-0.5">${mmss(durationSec)} · Suno V4</p>` : ''}
+            </div>
+          </div>
+          <audio id="song-player" controls preload="metadata" class="w-full mb-3" style="height:44px">
+            <source src="${esc(audioUrl)}" type="audio/mpeg">
+          </audio>
+          <div class="flex gap-2 mb-3 flex-wrap">
+            ${altAudioUrl ? `
+              <button id="toggle-variant-btn" data-main="${esc(audioUrl)}" data-alt="${esc(altAudioUrl)}" class="flex-1 bg-surface-highest hover:bg-surface-bright text-xs font-medium rounded-xl py-2 transition-colors border border-outline-variant/20 flex items-center justify-center gap-1.5">
+                <span class="material-symbols-outlined text-[14px]">swap_horiz</span>
+                <span id="variant-label">Variante 2</span>
+              </button>
+            ` : ''}
+            <a href="${esc(audioUrl)}" download="${esc(title)}.mp3" class="flex-1 bg-surface-highest hover:bg-surface-bright text-xs font-medium rounded-xl py-2 transition-colors border border-outline-variant/20 flex items-center justify-center gap-1.5">
+              <span class="material-symbols-outlined text-[14px]">download</span>
+              <span>Download</span>
+            </a>
+            <button data-share-url="${esc(audioUrl)}" class="share-song-btn flex-1 bg-[#f59e0b]/20 hover:bg-[#f59e0b]/30 text-[#f59e0b] text-xs font-medium rounded-xl py-2 transition-colors flex items-center justify-center gap-1.5">
+              <span class="material-symbols-outlined text-[14px]">share</span>
+              <span>Teilen</span>
+            </button>
+          </div>
+        ` : `
+          <div class="flex justify-between items-start mb-3">
+            <h3 class="font-medium text-sm">${esc(title)}</h3>
+            <span class="text-[10px] text-on-surface-variant bg-surface-highest px-2 py-1 rounded-full">${esc(style)}</span>
+          </div>
+        `}
+
+        ${lyrics ? `
+          <details ${audioUrl ? '' : 'open'} class="mb-3">
+            <summary class="cursor-pointer text-xs text-on-surface-variant hover:text-on-surface mb-2 flex items-center gap-1">
+              <span class="material-symbols-outlined text-[14px]">lyrics</span>
+              <span>Lyrics ${audioUrl ? '(klick zum Aufklappen)' : ''}</span>
+            </summary>
+            <div class="bg-surface-highest rounded-xl p-4 text-sm leading-relaxed font-light max-h-[400px] overflow-y-auto">
+              ${formattedLyrics}
+            </div>
+          </details>
+        ` : ''}
+
+        <div class="flex gap-2">
+          <button id="copy-lyrics-btn" class="flex-1 bg-surface-highest hover:bg-surface-bright text-xs font-medium rounded-xl py-2 transition-colors border border-outline-variant/20 flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-[14px]">content_copy</span>
             Lyrics kopieren
           </button>
-          <a href="https://suno.com/create" target="_blank" rel="noopener" class="flex-1 bg-[#f59e0b]/20 hover:bg-[#f59e0b]/30 text-[#f59e0b] text-sm font-medium rounded-xl py-2.5 transition-colors flex items-center justify-center gap-1.5">
-            <span class="material-symbols-outlined text-[16px]">music_note</span>
-            In Suno öffnen
-          </a>
+          ${!audioUrl ? `
+            <a href="https://suno.com/create" target="_blank" rel="noopener" class="flex-1 bg-[#f59e0b]/20 hover:bg-[#f59e0b]/30 text-[#f59e0b] text-xs font-medium rounded-xl py-2 transition-colors flex items-center justify-center gap-1.5">
+              <span class="material-symbols-outlined text-[14px]">music_note</span>
+              In Suno öffnen
+            </a>
+          ` : ''}
         </div>
+
         ${sunoStatus === 'generating' ? `
           <div class="bg-[#f59e0b]/10 border border-[#f59e0b]/30 text-[#f59e0b] rounded-2xl px-4 py-3 text-sm mt-3 flex items-center gap-2">
             <span class="sparkle-pulse">🎵</span>
-            <span>Song wird bei Suno generiert… Kann 1-3 Min dauern.</span>
+            <span>Song wird bei Suno generiert… (1–3 Min, auto-refresh alle 15 Sek)</span>
           </div>
         ` : sunoStatus === 'no_api_key' ? `
           <p class="text-xs text-on-surface-variant mt-3 px-1">Tipp: Lyrics kopieren → bei <a href="https://suno.com/create" target="_blank" rel="noopener" class="text-[#f59e0b] underline">suno.com</a> einfügen → Custom Mode → Style einfügen → Create.</p>
@@ -1259,13 +1360,47 @@
       const btn = document.getElementById('copy-lyrics-btn');
       try {
         await navigator.clipboard.writeText(copyText);
-        btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span> Kopiert!';
+        btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">check</span> Kopiert!';
         setTimeout(() => {
-          btn.innerHTML = '<span class="material-symbols-outlined text-[16px]">content_copy</span> Lyrics kopieren';
+          btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">content_copy</span> Lyrics kopieren';
         }, 1500);
       } catch {
         btn.textContent = 'Fehler';
       }
+    });
+
+    // Variante-Toggle
+    const toggleBtn = document.getElementById('toggle-variant-btn');
+    if (toggleBtn) {
+      let onAlt = false;
+      toggleBtn.addEventListener('click', () => {
+        const player = document.getElementById('song-player');
+        if (!player) return;
+        onAlt = !onAlt;
+        const src = onAlt ? toggleBtn.dataset.alt : toggleBtn.dataset.main;
+        player.querySelector('source').src = src;
+        player.load();
+        player.play().catch(() => {});
+        const label = document.getElementById('variant-label');
+        if (label) label.textContent = onAlt ? 'Variante 1' : 'Variante 2';
+      });
+    }
+
+    // Share-Song
+    result.querySelectorAll('.share-song-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const url = btn.dataset.shareUrl;
+        if ('share' in navigator) {
+          try { await navigator.share({ url, title: `${title} — KREIS` }); }
+          catch (e) { if (e.name !== 'AbortError') navigator.clipboard?.writeText(url); }
+        } else {
+          navigator.clipboard?.writeText(url);
+          btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">check</span><span>Link kopiert</span>';
+          setTimeout(() => {
+            btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">share</span><span>Teilen</span>';
+          }, 1500);
+        }
+      });
     });
   }
 
