@@ -1,434 +1,372 @@
 <!DOCTYPE html>
-<html lang="de">
+<html class="dark" lang="de">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0a0a0a">
-<title>KREIS</title>
+<meta name="theme-color" content="#0e0e0e">
+<meta name="description" content="KREIS — Tool für enge Menschen. Gemeinsam entscheiden, ob wir was machen.">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="KREIS — für enge Menschen">
+<meta property="og:description" content="Einfach tippen, KREIS versteht's. Freunde einladen mit einem Link. Kein Gefummel.">
+<meta property="og:image" content="https://1gassner.github.io/kreis/og.png">
+<meta property="og:url" content="https://1gassner.github.io/kreis/">
+<meta property="og:locale" content="de_DE">
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="KREIS — für enge Menschen">
+<meta name="twitter:description" content="Einfach tippen, KREIS versteht's. Freunde einladen mit einem Link.">
+<meta name="twitter:image" content="https://1gassner.github.io/kreis/og.png">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KREIS">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='none' stroke='%23a78bfa' stroke-width='8'/%3E%3C/svg%3E">
+
+<title>KREIS</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300..700,0..1,-25..200&display=swap" rel="stylesheet">
+
+<script>
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "surface-lowest": "#0e0e0e",
+          "surface": "#131313",
+          "surface-low": "#1c1b1b",
+          "surface-high": "#2a2a2a",
+          "surface-highest": "#353534",
+          "surface-bright": "#3a3939",
+          "on-surface": "#e5e2e1",
+          "on-surface-variant": "#cac4d4",
+          "outline": "#948e9d",
+          "outline-variant": "#494552",
+          "primary": "#cebdff",
+          "primary-container": "#a78bfa",
+          "on-primary-container": "#3c1989",
+          "error": "#ffb4ab",
+          "yes": "#22c55e",
+          "maybe": "#eab308",
+          "no": "#ef4444",
+        },
+        fontFamily: {
+          sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        },
+        borderRadius: {
+          '2xl': '1rem',
+          '3xl': '1.5rem',
+        },
+      },
+    },
+  };
+</script>
+
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0a0a0a;
-    --bg-card: #161616;
-    --bg-elev: #222;
-    --border: #2a2a2a;
-    --text: #f5f5f5;
-    --text-dim: #9a9a9a;
-    --accent: #a78bfa;
-    --yes: #22c55e;
-    --maybe: #eab308;
-    --no: #ef4444;
-  }
-  html, body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    font-size: 16px;
-    line-height: 1.5;
-    min-height: 100vh;
-    -webkit-font-smoothing: antialiased;
-  }
   body {
-    padding: 20px;
-    padding-bottom: max(20px, env(safe-area-inset-bottom));
-    max-width: 640px;
-    margin: 0 auto;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'cv11', 'ss01';
   }
-  header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 30px;
-    padding-top: env(safe-area-inset-top);
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    vertical-align: middle;
   }
-  header .logo {
-    width: 32px;
-    height: 32px;
-    border: 3px solid var(--accent);
-    border-radius: 50%;
-  }
-  header h1 {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 2px;
-  }
-  header .tagline {
-    margin-left: auto;
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-  h2 {
-    font-size: 18px;
-    margin-bottom: 14px;
-    color: var(--text);
-  }
-  h3 {
-    font-size: 14px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-    font-weight: 600;
-  }
-  label {
-    display: block;
-    font-size: 13px;
-    color: var(--text-dim);
-    margin-bottom: 6px;
-    margin-top: 12px;
-  }
-  label:first-of-type { margin-top: 0; }
-  input, textarea, button {
-    font-family: inherit;
-    font-size: 15px;
-  }
-  input, textarea {
-    width: 100%;
-    background: var(--bg-elev);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-    outline: none;
-    transition: border-color 0.15s;
-  }
-  input:focus, textarea:focus { border-color: var(--accent); }
-  input.missing, textarea.missing {
-    border-color: var(--no);
-    background: rgba(239, 68, 68, 0.06);
-  }
-  .field-hint-creator {
-    font-size: 12px;
-    color: var(--accent);
-    margin-top: 6px;
-    font-weight: 500;
-  }
-  textarea { resize: vertical; min-height: 60px; }
-  .row { display: flex; gap: 10px; }
-  .row > * { flex: 1; }
-  button {
+  .mat-fill { font-variation-settings: 'FILL' 1, 'wght' 500; }
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
     cursor: pointer;
-    border: none;
-    padding: 14px 20px;
-    border-radius: 10px;
-    font-weight: 600;
-    transition: transform 0.05s, opacity 0.15s;
   }
-  button:active { transform: scale(0.97); }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-primary {
-    background: var(--accent);
-    color: #1a1a1a;
-    width: 100%;
-    margin-top: 18px;
-    font-size: 16px;
+  input.missing, textarea.missing {
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.06) !important;
   }
-  .btn-ghost {
-    background: transparent;
-    color: var(--text-dim);
-    border: 1px solid var(--border);
-    font-size: 13px;
-    padding: 8px 14px;
-  }
-  .vote-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-  .vote-btn {
-    padding: 16px 8px;
-    border-radius: 12px;
-    background: var(--bg-elev);
-    color: var(--text);
-    border: 2px solid transparent;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-  }
-  .vote-btn .emoji { font-size: 26px; }
-  .vote-btn .label { font-size: 12px; color: var(--text-dim); }
-  .vote-btn.selected-yes { border-color: var(--yes); background: rgba(34, 197, 94, 0.1); }
-  .vote-btn.selected-maybe { border-color: var(--maybe); background: rgba(234, 179, 8, 0.1); }
-  .vote-btn.selected-no { border-color: var(--no); background: rgba(239, 68, 68, 0.1); }
-
-  .event-meta {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 8px 14px;
-    font-size: 14px;
-    margin-bottom: 14px;
-  }
-  .event-meta .key { color: var(--text-dim); }
-  .event-meta .val { color: var(--text); }
-  .event-meta a { color: var(--accent); text-decoration: none; word-break: break-all; }
-
-  .responses-list { margin-top: 8px; }
-  .response-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-  }
-  .response-item:last-child { border-bottom: none; }
-  .response-item .name { font-weight: 600; flex: 1; }
-  .response-item .note { color: var(--text-dim); font-size: 13px; font-style: italic; }
-  .response-emoji { font-size: 22px; width: 30px; text-align: center; }
-
-  .stats {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 14px;
-    font-size: 14px;
-  }
-  .stat-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: var(--bg-elev);
-    border-radius: 20px;
-    color: var(--text-dim);
-  }
-
-  .share-box {
-    background: var(--bg-elev);
-    border-radius: 10px;
-    padding: 14px;
-    margin-top: 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .share-box code {
-    flex: 1;
-    font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    font-size: 12px;
-    color: var(--text-dim);
-    word-break: break-all;
-  }
-
-  .error {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-    color: #fca5a5;
-    padding: 12px 14px;
-    border-radius: 10px;
-    font-size: 14px;
-    margin: 10px 0;
-  }
-  .success {
-    background: rgba(34, 197, 94, 0.1);
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    color: #86efac;
-    padding: 12px 14px;
-    border-radius: 10px;
-    font-size: 14px;
-    margin: 10px 0;
-  }
-
-  .hidden { display: none !important; }
-  .loading { text-align: center; color: var(--text-dim); padding: 40px 0; }
-  .muted { color: var(--text-dim); font-size: 13px; }
-
-  .nl-box { position: relative; }
-  .nl-input {
-    min-height: 90px;
-    font-size: 16px;
-    line-height: 1.4;
-  }
-  .nl-input::placeholder { color: #666; }
-  .btn-ai {
-    background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
-    color: #fff;
-    width: 100%;
-    margin-top: 12px;
-    font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-  .btn-ai:hover { filter: brightness(1.1); }
-  .sparkle { animation: sparkle 2s ease-in-out infinite; }
+  .sparkle-pulse { animation: sparkle 2.5s ease-in-out infinite; display: inline-block; }
   @keyframes sparkle {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(1.15); }
+    50% { opacity: 0.75; transform: scale(1.15); }
   }
-  .preview-hint {
-    font-size: 12px;
-    color: var(--text-dim);
-    margin: -4px 0 10px;
-    font-style: italic;
-  }
-  .toggle-link {
-    display: inline-block;
-    font-size: 13px;
-    color: var(--text-dim);
-    cursor: pointer;
-    text-decoration: underline;
-    margin-top: 14px;
-  }
-  .toggle-link:hover { color: var(--accent); }
-  .friend-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 4px;
-  }
-  .chip {
-    background: rgba(167, 139, 250, 0.15);
-    color: var(--accent);
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 13px;
-    border: 1px solid rgba(167, 139, 250, 0.3);
-  }
-  footer {
-    margin-top: 40px;
-    text-align: center;
-    font-size: 11px;
-    color: var(--text-dim);
-    padding-bottom: 20px;
-  }
+  .vote-btn.selected-yes { border-color: var(--yes, #22c55e) !important; background: rgba(34, 197, 94, 0.1) !important; }
+  .vote-btn.selected-maybe { border-color: var(--maybe, #eab308) !important; background: rgba(234, 179, 8, 0.1) !important; }
+  .vote-btn.selected-no { border-color: var(--no, #ef4444) !important; background: rgba(239, 68, 68, 0.1) !important; }
+  .fade-in { animation: fadeIn 0.25s ease-out; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 </head>
-<body>
+<body class="bg-surface-lowest text-on-surface min-h-screen flex flex-col items-center pb-12">
 
-<header>
-  <div class="logo"></div>
-  <h1>KREIS</h1>
-  <span class="tagline">für enge Menschen</span>
+<!-- Header -->
+<header class="w-full sticky top-0 z-50 bg-surface-lowest/70 backdrop-blur-lg">
+  <div class="flex justify-between items-center w-full px-6 py-4 max-w-2xl mx-auto">
+    <a href="?" class="flex items-center gap-2 text-primary-container hover:opacity-80 transition-opacity">
+      <span class="material-symbols-outlined text-[22px]">radio_button_unchecked</span>
+      <span class="text-xl font-medium tracking-[0.15em]">KREIS</span>
+    </a>
+    <span class="text-on-surface-variant italic text-sm">für enge Menschen</span>
+  </div>
 </header>
 
-<main id="app">
-  <div class="loading">lade...</div>
+<!-- App Container -->
+<main id="app" class="w-full max-w-2xl px-4 sm:px-6 pt-6 sm:pt-10 flex flex-col gap-6 relative z-10">
+  <div class="text-center text-on-surface-variant py-20">lade…</div>
 </main>
 
-<footer>built for Jürgen &amp; Freunde · v0.1</footer>
+<footer class="mt-auto pt-12 pb-6 text-center text-xs text-on-surface-variant/60">
+  <p>gebaut für Jürgen &amp; Freunde · <a href="https://github.com/1gassner/kreis" class="hover:text-primary-container transition-colors" target="_blank" rel="noopener">GitHub</a></p>
+</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 <script>
+  // ============================
+  // CONFIG
+  // ============================
   const SUPABASE_URL = 'https://sgsufdxggvfgejwiclot.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnc3VmZHhnZ3ZmZ2Vqd2ljbG90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2OTI2OTQsImV4cCI6MjA4OTI2ODY5NH0.PpS8WL9Z3a9kGObV1IbpRyOfaZGm0NtEovLxLlAfA4A';
+  const PARSE_URL = `${SUPABASE_URL}/functions/v1/kreis-parse-event`;
+
   if (!window.supabase) {
-    document.getElementById('app').innerHTML = '<div class="card"><div class="error">Supabase-Library konnte nicht geladen werden. Bist du offline oder blockt ein Adblocker jsdelivr?</div></div>';
+    document.getElementById('app').innerHTML = '<div class="bg-surface-low rounded-2xl p-6 border border-error/30"><p class="text-error">Supabase-Library konnte nicht geladen werden. Offline oder Adblocker aktiv?</p></div>';
     throw new Error('supabase-js not loaded');
   }
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  window.addEventListener('error', (e) => {
-    console.error('[KREIS] Uncaught:', e.error || e.message);
-  });
+  window.addEventListener('error', (e) => console.error('[KREIS]', e.error || e.message));
 
+  // ============================
+  // HELPERS
+  // ============================
   const $app = document.getElementById('app');
-  const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
   const getName = () => localStorage.getItem('kreis_name') || '';
   const setName = (n) => localStorage.setItem('kreis_name', n);
 
+  function formatDate(d) {
+    if (!d) return '';
+    return new Date(d + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
   function formatDateRange(start, end) {
     if (!start) return '—';
-    const opts = { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' };
-    const a = new Date(start).toLocaleDateString('de-DE', opts);
+    const a = formatDate(start);
     if (!end || end === start) return a;
-    const b = new Date(end).toLocaleDateString('de-DE', opts);
-    return `${a} – ${b}`;
+    return `${a} – ${formatDate(end)}`;
+  }
+  function initials(name) {
+    const parts = (name || '?').trim().split(/\s+/);
+    return (parts[0]?.[0] || '?').toUpperCase() + (parts.length > 1 ? (parts[parts.length - 1][0] || '').toUpperCase() : '');
   }
 
-  const PARSE_URL = `${SUPABASE_URL}/functions/v1/kreis-parse-event`;
+  // --- My Events (localStorage) ---
+  function getMyEvents() {
+    try { return JSON.parse(localStorage.getItem('kreis_my_events') || '[]'); } catch { return []; }
+  }
+  function addMyEvent(evt) {
+    const mine = getMyEvents().filter(e => e.id !== evt.id);
+    mine.unshift({ id: evt.id, title: evt.title, date_start: evt.date_start, date_end: evt.date_end, created_at: evt.created_at || new Date().toISOString() });
+    localStorage.setItem('kreis_my_events', JSON.stringify(mine.slice(0, 50)));
+  }
+  function updateMyEvent(evt) {
+    const mine = getMyEvents().map(e => e.id === evt.id ? { ...e, title: evt.title, date_start: evt.date_start, date_end: evt.date_end } : e);
+    localStorage.setItem('kreis_my_events', JSON.stringify(mine));
+  }
+  function removeMyEvent(id) {
+    localStorage.setItem('kreis_my_events', JSON.stringify(getMyEvents().filter(e => e.id !== id)));
+  }
+  function isMyEvent(id) { return getMyEvents().some(e => e.id === id); }
 
+  // --- Share helpers ---
+  function eventUrl(id) { return `${location.origin}${location.pathname}?event=${id}`; }
+  function buildWhatsAppUrl(event, url) {
+    const dateStr = event.date_start ? ` · ${formatDateRange(event.date_start, event.date_end)}` : '';
+    const loc = event.location ? ` in ${event.location}` : '';
+    const text = `Hey! ${event.title}${loc}${dateStr}\n\nSag mir hier ob du dabei bist:\n${url}`;
+    return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  }
+
+  // --- ICS export ---
+  function icsDate(s) { return s.replace(/-/g, ''); }
+  function addDays(s, n) {
+    const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+  function buildICS(event, url) {
+    const now = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const start = event.date_start ? icsDate(event.date_start) : null;
+    const end = event.date_end ? icsDate(addDays(event.date_end, 1)) : (start ? icsDate(addDays(event.date_start, 1)) : null);
+    const escIcs = (s) => String(s || '').replace(/[\\;,\n]/g, (c) => ({ '\\': '\\\\', ';': '\\;', ',': '\\,', '\n': '\\n' }[c]));
+    const lines = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//KREIS//DE', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH',
+      'BEGIN:VEVENT', `UID:${event.id}@kreis`, `DTSTAMP:${now}`,
+    ];
+    if (start) lines.push(`DTSTART;VALUE=DATE:${start}`);
+    if (end) lines.push(`DTEND;VALUE=DATE:${end}`);
+    lines.push(
+      `SUMMARY:${escIcs(event.title)}`,
+      event.location ? `LOCATION:${escIcs(event.location)}` : '',
+      `DESCRIPTION:${escIcs([event.note, `KREIS-Link: ${url}`].filter(Boolean).join('\n'))}`,
+      `URL:${url}`, 'END:VEVENT', 'END:VCALENDAR'
+    );
+    return lines.filter(Boolean).join('\r\n');
+  }
+  function downloadICS(event, url) {
+    const blob = new Blob([buildICS(event, url)], { type: 'text/calendar;charset=utf-8' });
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl;
+    a.download = `kreis-${(event.title || 'event').toLowerCase().replace(/[^a-z0-9äöüß]+/g, '-').slice(0, 40)}.ics`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+  }
+
+  // ============================
+  // RENDER: CREATE / LANDING
+  // ============================
   function renderCreate(prefill = null) {
     const p = prefill || {};
     const hasPrefill = !!prefill;
+    const mine = getMyEvents();
+    const today = new Date().toISOString().slice(0, 10);
 
     $app.innerHTML = `
-      <div class="card nl-box">
-        <h2>Was hast du vor?</h2>
-        <p class="muted" style="margin-bottom:12px">Einfach tippen — KREIS versteht's. Keine Formular-Gefummel.</p>
-
-        <textarea id="nl-input" class="nl-input" placeholder="z.B. 'Klettern Reutlingen nächsten Samstag 15 Uhr mit Nino und Cindy'" autofocus>${escape(p._raw || '')}</textarea>
-        <button class="btn-ai" id="parse-btn">
-          <span class="sparkle">✨</span>
-          <span id="parse-btn-text">${hasPrefill ? 'Neu parsen' : 'Event verstehen'}</span>
-        </button>
-        <div id="parse-feedback"></div>
-        <span class="toggle-link" id="toggle-manual">${hasPrefill ? '' : 'lieber manuell ausfüllen'}</span>
-      </div>
-
-      <div class="card ${hasPrefill ? '' : 'hidden'}" id="preview-card">
-        <h3>${hasPrefill ? 'Passt das?' : 'Manuell'}</h3>
-        <p class="preview-hint ${hasPrefill ? '' : 'hidden'}">KREIS hat das verstanden. Ändern wo nötig.</p>
-
-        <label for="creator">Dein Name <span style="color:var(--accent)">*</span></label>
-        <input id="creator" placeholder="z.B. Jürgen" value="${escape(getName())}">
-        ${!getName() ? '<div class="field-hint-creator">← Damit deine Freunde wissen, von wem die Einladung kommt.</div>' : ''}
-
-        <label for="title">Was? <span style="color:var(--accent)">*</span></label>
-        <input id="title" placeholder="z.B. Klettern im Kletterwald" value="${escape(p.title || '')}">
-
-        <label for="location">Wo?</label>
-        <input id="location" placeholder="z.B. Reutlingen Hallenbad" value="${escape(p.location || '')}">
-
-        <div class="row">
-          <div>
-            <label for="date_start">Wann? (von)</label>
-            <input id="date_start" type="date" value="${escape(p.date_start || '')}">
-          </div>
-          <div>
-            <label for="date_end">bis (optional)</label>
-            <input id="date_end" type="date" value="${escape(p.date_end || '')}">
-          </div>
+      ${mine.length > 0 ? `
+      <section class="fade-in bg-surface-low rounded-3xl p-5 sm:p-6">
+        <h2 class="text-on-surface-variant text-xs font-semibold tracking-widest uppercase mb-4">Deine Events</h2>
+        <div class="flex flex-col gap-2">
+          ${mine.slice(0, 8).map(e => {
+            const past = e.date_start && e.date_start < today;
+            const dateLabel = e.date_start
+              ? new Date(e.date_start + 'T00:00:00').toLocaleDateString('de-DE', { day: '2-digit', month: 'short' })
+              : '—';
+            return `
+              <a href="?event=${esc(e.id)}" class="group flex items-center gap-3 bg-surface-high hover:bg-surface-bright rounded-2xl px-4 py-3 transition-colors ${past ? 'opacity-55' : ''}">
+                <div class="bg-primary-container/15 text-primary-container text-[11px] font-semibold uppercase tracking-wide rounded-xl px-2.5 py-1.5 min-w-[56px] text-center leading-tight">
+                  ${esc(dateLabel)}
+                </div>
+                <span class="flex-1 text-sm font-medium truncate">${esc(e.title)}</span>
+                <span class="material-symbols-outlined text-on-surface-variant text-[20px] group-hover:text-primary-container transition-colors">chevron_right</span>
+              </a>`;
+          }).join('')}
         </div>
+      </section>
+      ` : ''}
 
-        <label for="link">Link (optional)</label>
-        <input id="link" type="url" placeholder="https://..." value="${escape(p.link || '')}">
+      <section class="fade-in flex flex-col gap-5">
+        <div class="flex flex-col gap-2 pl-1">
+          <h1 class="text-3xl font-light tracking-tight">Was hast du vor?</h1>
+          <p class="text-on-surface-variant text-base leading-relaxed">Einfach tippen — KREIS versteht's. Keine Formular-Gefummel.</p>
+        </div>
+        <div class="bg-surface-low rounded-3xl p-4 flex flex-col gap-4">
+          <textarea
+            id="nl-input"
+            class="w-full bg-surface-highest/60 placeholder:text-outline-variant rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors p-4 min-h-[110px] resize-none text-base font-light leading-relaxed"
+            placeholder="z.B. Klettern Reutlingen nächsten Samstag 15 Uhr mit Nino und Cindy"
+            autofocus>${esc(p._raw || '')}</textarea>
+          <button
+            id="parse-btn"
+            class="w-full bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-medium rounded-2xl py-3.5 px-5 hover:shadow-[0_12px_32px_rgba(167,139,250,0.2)] transition-shadow flex items-center justify-center gap-2">
+            <span class="sparkle-pulse">✨</span>
+            <span id="parse-btn-text">${hasPrefill ? 'Neu parsen' : 'Event verstehen'}</span>
+          </button>
+          <button id="toggle-manual" class="text-on-surface-variant text-sm font-light hover:text-on-surface transition-colors ${hasPrefill ? 'hidden' : ''}">
+            lieber manuell ausfüllen
+          </button>
+        </div>
+        <div id="parse-feedback"></div>
+      </section>
 
-        <label for="note">Notiz (optional)</label>
-        <textarea id="note" placeholder="Irgendwas Wichtiges?">${escape(p.note || '')}</textarea>
+      <section id="preview-section" class="flex flex-col gap-5 ${hasPrefill ? 'fade-in' : 'hidden'}">
+        <div class="flex flex-col gap-2 pl-1">
+          <h2 class="text-2xl font-light tracking-tight">${hasPrefill ? 'Passt das?' : 'Manuell'}</h2>
+          <p class="text-on-surface-variant text-sm ${hasPrefill ? '' : 'hidden'}">KREIS hat das verstanden. Ändern wo nötig.</p>
+        </div>
+        <div class="bg-surface-low rounded-3xl p-5 sm:p-6 flex flex-col gap-5 relative overflow-hidden">
+          <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-primary-container opacity-50"></div>
 
-        ${Array.isArray(p.friends) && p.friends.length > 0 ? `
-          <label>Freunde, die du nennst</label>
-          <div class="friend-chips">
-            ${p.friends.map(f => `<span class="chip">${escape(f)}</span>`).join('')}
+          ${Array.isArray(p.friends) && p.friends.length > 0 ? `
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-on-surface-variant text-sm">Freunde, die du nennst:</span>
+            ${p.friends.map(f => `<span class="bg-primary-container/10 text-primary-container border border-primary-container/20 rounded-full px-3 py-1 text-sm">${esc(f)}</span>`).join('')}
           </div>
-          <p class="muted" style="margin-top:6px;font-size:12px">(Nur als Hinweis — eingeladen wird über den Link.)</p>
-        ` : ''}
+          ` : ''}
 
-        <button class="btn-primary" id="create-btn">Event erstellen &amp; Link kopieren</button>
-        <div id="create-feedback"></div>
-      </div>
+          <div class="flex flex-col gap-4">
+            <label class="flex flex-col gap-2">
+              <span class="text-sm text-on-surface-variant ml-1">Dein Name <span class="text-primary-container">*</span></span>
+              <input id="creator" type="text" placeholder="z.B. Jürgen" value="${esc(getName())}" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors px-4 py-3">
+              ${!getName() ? '<span class="text-xs text-primary-container ml-1">← Damit deine Freunde wissen, von wem die Einladung kommt.</span>' : ''}
+            </label>
+            <label class="flex flex-col gap-2">
+              <span class="text-sm text-on-surface-variant ml-1">Was? <span class="text-primary-container">*</span></span>
+              <input id="title" type="text" placeholder="z.B. Klettern im Kletterwald" value="${esc(p.title || '')}" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors px-4 py-3">
+            </label>
+            <label class="flex flex-col gap-2">
+              <span class="text-sm text-on-surface-variant ml-1">Wo?</span>
+              <div class="relative">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">location_on</span>
+                <input id="location" type="text" placeholder="z.B. Reutlingen Hallenbad" value="${esc(p.location || '')}" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors pl-11 pr-4 py-3">
+              </div>
+            </label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="flex flex-col gap-2">
+                <span class="text-sm text-on-surface-variant ml-1">Wann? (von)</span>
+                <div class="relative">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">calendar_today</span>
+                  <input id="date_start" type="date" value="${esc(p.date_start || '')}" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors pl-11 pr-3 py-3">
+                </div>
+              </label>
+              <label class="flex flex-col gap-2">
+                <span class="text-sm text-on-surface-variant ml-1">bis (optional)</span>
+                <input id="date_end" type="date" value="${esc(p.date_end || '')}" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors px-4 py-3">
+              </label>
+            </div>
+            <label class="flex flex-col gap-2">
+              <span class="text-sm text-on-surface-variant ml-1">Link (optional)</span>
+              <div class="relative">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">link</span>
+                <input id="link" type="url" placeholder="https://" value="${esc(p.link || '')}" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors pl-11 pr-4 py-3">
+              </div>
+            </label>
+            <label class="flex flex-col gap-2">
+              <span class="text-sm text-on-surface-variant ml-1">Notiz (optional)</span>
+              <textarea id="note" placeholder="Irgendwas Wichtiges?" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors px-4 py-3 min-h-[80px] resize-none">${esc(p.note || '')}</textarea>
+            </label>
+          </div>
+
+          <button id="create-btn" class="w-full mt-2 bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-medium rounded-2xl py-3.5 px-5 hover:shadow-[0_12px_32px_rgba(167,139,250,0.25)] transition-shadow flex items-center justify-center gap-2">
+            <span>Event erstellen &amp; Link kopieren</span>
+            <span class="material-symbols-outlined text-[20px]">content_copy</span>
+          </button>
+          <div id="create-feedback"></div>
+        </div>
+      </section>
     `;
 
     document.getElementById('parse-btn').addEventListener('click', parseNL);
-    document.getElementById('create-btn').addEventListener('click', createEvent);
+    document.getElementById('create-btn')?.addEventListener('click', createEvent);
     document.getElementById('nl-input').addEventListener('keydown', (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-        e.preventDefault();
-        parseNL();
-      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); parseNL(); }
     });
     const tm = document.getElementById('toggle-manual');
     if (tm) tm.addEventListener('click', () => {
-      document.getElementById('preview-card').classList.remove('hidden');
-      tm.style.display = 'none';
+      document.getElementById('preview-section').classList.remove('hidden');
+      tm.classList.add('hidden');
       document.getElementById(getName() ? 'title' : 'creator').focus();
     });
 
-    // Auto-focus Name-Feld nach Parse wenn leer, sonst Create-Button hervorheben
     if (hasPrefill) {
       setTimeout(() => {
-        if (!getName()) {
-          document.getElementById('creator').focus();
-        }
+        if (!getName()) document.getElementById('creator')?.focus();
       }, 100);
     }
   }
@@ -440,43 +378,31 @@
     const btnText = document.getElementById('parse-btn-text');
 
     if (!text) {
-      fb.innerHTML = '<div class="error">Erst was eintippen, dann KREIS zaubern lassen.</div>';
+      fb.innerHTML = '<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Erst was eintippen, dann KREIS zaubern lassen.</div>';
       return;
     }
-
     btn.disabled = true;
-    btnText.textContent = 'denke nach...';
+    btnText.textContent = 'denke nach…';
     fb.innerHTML = '';
 
     try {
       const resp = await fetch(PARSE_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-          'apikey': SUPABASE_KEY,
-        },
-        body: JSON.stringify({
-          text,
-          today: new Date().toISOString().slice(0, 10),
-        }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SUPABASE_KEY}`, 'apikey': SUPABASE_KEY },
+        body: JSON.stringify({ text, today: new Date().toISOString().slice(0, 10) }),
       });
-
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-        fb.innerHTML = `<div class="error">KREIS hat's nicht geschnallt: ${escape(err.error || 'unbekannt')}. Nochmal probieren oder manuell.</div>`;
-        btn.disabled = false;
-        btnText.textContent = 'Event verstehen';
+        fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">KREIS hat's nicht geschnallt: ${esc(err.error || 'unbekannt')}. Nochmal probieren oder manuell.</div>`;
+        btn.disabled = false; btnText.textContent = 'Event verstehen';
         return;
       }
-
       const { parsed } = await resp.json();
       parsed._raw = text;
       renderCreate(parsed);
     } catch (err) {
-      fb.innerHTML = `<div class="error">Netzwerk-Fehler: ${escape(err.message || err)}. Offline?</div>`;
-      btn.disabled = false;
-      btnText.textContent = 'Event verstehen';
+      fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Netzwerk-Fehler: ${esc(err.message || err)}. Offline?</div>`;
+      btn.disabled = false; btnText.textContent = 'Event verstehen';
     }
   }
 
@@ -493,213 +419,361 @@
     const fb = document.getElementById('create-feedback');
     const btn = document.getElementById('create-btn');
 
-    // Reset visual state
     titleEl.classList.remove('missing');
     creatorEl.classList.remove('missing');
 
     const missing = [];
     if (!creator) { missing.push('Dein Name'); creatorEl.classList.add('missing'); }
     if (!title) { missing.push('Was (Titel)'); titleEl.classList.add('missing'); }
-
-    if (missing.length > 0) {
-      fb.innerHTML = `<div class="error">Fehlt noch: <strong>${missing.join(' und ')}</strong>. Rot markiert.</div>`;
-      // Fokus aufs erste leere Feld
+    if (missing.length) {
+      fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Fehlt noch: <strong>${missing.join(' und ')}</strong>. Rot markiert.</div>`;
       (missing[0] === 'Dein Name' ? creatorEl : titleEl).focus();
       return;
     }
 
     setName(creator);
     btn.disabled = true;
-    btn.textContent = 'erstelle...';
+    btn.innerHTML = '<span>erstelle…</span>';
 
     const { data, error } = await sb.from('kreis_events').insert({
       title, location: locationVal || null, date_start, date_end, link, note, created_by: creator
     }).select().single();
-
     if (error) {
-      fb.innerHTML = `<div class="error">Fehler: ${escape(error.message)}</div>`;
+      fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Fehler: ${esc(error.message)}</div>`;
       btn.disabled = false;
-      btn.textContent = 'Event erstellen & Link kopieren';
+      btn.innerHTML = '<span>Event erstellen &amp; Link kopieren</span><span class="material-symbols-outlined text-[20px]">content_copy</span>';
       return;
     }
 
-    // Creator vote: yes by default
-    await sb.from('kreis_responses').insert({
-      event_id: data.id, user_name: creator, response: 'yes'
-    });
+    await sb.from('kreis_responses').insert({ event_id: data.id, user_name: creator, response: 'yes' });
+    addMyEvent(data);
 
-    const url = `${window.location.origin}${window.location.pathname}?event=${data.id}`;
+    const url = eventUrl(data.id);
     try {
       await navigator.clipboard.writeText(url);
-      fb.innerHTML = `<div class="success">Erstellt. Link kopiert — jetzt in WhatsApp einfügen.</div>`;
-    } catch (e) {
-      fb.innerHTML = `<div class="success">Erstellt. Link:<br><code style="word-break:break-all">${escape(url)}</code></div>`;
+      fb.innerHTML = '<div class="bg-yes/10 border border-yes/30 text-yes rounded-2xl px-4 py-3 text-sm">Erstellt. Link kopiert — jetzt in WhatsApp einfügen.</div>';
+    } catch {
+      fb.innerHTML = `<div class="bg-yes/10 border border-yes/30 text-yes rounded-2xl px-4 py-3 text-sm break-all">Erstellt. Link:<br>${esc(url)}</div>`;
     }
-
-    setTimeout(() => { window.location.href = url; }, 1200);
+    setTimeout(() => { location.href = url; }, 1000);
   }
 
+  // ============================
+  // RENDER: EVENT DETAIL
+  // ============================
   async function renderEvent(eventId) {
-    $app.innerHTML = '<div class="loading">lade Event...</div>';
-
-    const { data: event, error } = await sb
-      .from('kreis_events')
-      .select('*')
-      .eq('id', eventId)
-      .single();
-
+    $app.innerHTML = '<div class="text-center text-on-surface-variant py-20">lade Event…</div>';
+    const { data: event, error } = await sb.from('kreis_events').select('*').eq('id', eventId).single();
     if (error || !event) {
       $app.innerHTML = `
-        <div class="card">
-          <div class="error">Event nicht gefunden. Link kaputt?</div>
-          <button class="btn-ghost" onclick="window.location.href=window.location.pathname" style="margin-top:14px">Neues Event erstellen</button>
-        </div>
-      `;
+        <div class="bg-surface-low rounded-3xl p-6 border border-error/30">
+          <p class="text-error mb-3">Event nicht gefunden. Link kaputt?</p>
+          <a href="?" class="inline-block bg-surface-highest hover:bg-surface-bright px-4 py-2.5 rounded-2xl text-sm transition-colors">Neues Event erstellen</a>
+        </div>`;
       return;
     }
-
     await loadAndRenderEventView(event);
-  }
-
-  async function loadAndRenderEventView(event) {
-    const { data: responses } = await sb
-      .from('kreis_responses')
-      .select('*')
-      .eq('event_id', event.id)
-      .order('created_at', { ascending: true });
-
-    const me = getName();
-    const myResponse = responses?.find(r => r.user_name.toLowerCase() === me.toLowerCase());
-    const counts = {
-      yes: responses?.filter(r => r.response === 'yes').length || 0,
-      maybe: responses?.filter(r => r.response === 'maybe').length || 0,
-      no: responses?.filter(r => r.response === 'no').length || 0,
-    };
-
-    $app.innerHTML = `
-      <div class="card">
-        <h2>${escape(event.title)}</h2>
-        <div class="event-meta">
-          ${event.location ? `<span class="key">Wo</span><span class="val">${escape(event.location)}</span>` : ''}
-          ${event.date_start ? `<span class="key">Wann</span><span class="val">${formatDateRange(event.date_start, event.date_end)}</span>` : ''}
-          ${event.link ? `<span class="key">Link</span><span class="val"><a href="${escape(event.link)}" target="_blank" rel="noopener">${escape(event.link)}</a></span>` : ''}
-          <span class="key">Von</span><span class="val">${escape(event.created_by)}</span>
-        </div>
-        ${event.note ? `<p class="muted" style="margin-top:8px">${escape(event.note)}</p>` : ''}
-      </div>
-
-      <div class="card">
-        <h3>Bist du dabei?</h3>
-
-        <label for="my-name">Dein Name</label>
-        <input id="my-name" placeholder="Nino / Cindy / ..." value="${escape(me)}">
-
-        <div class="vote-grid" style="margin-top:14px">
-          <button class="vote-btn ${myResponse?.response === 'yes' ? 'selected-yes' : ''}" data-vote="yes">
-            <span class="emoji">🟢</span><span class="label">Dabei</span>
-          </button>
-          <button class="vote-btn ${myResponse?.response === 'maybe' ? 'selected-maybe' : ''}" data-vote="maybe">
-            <span class="emoji">🟡</span><span class="label">Vielleicht</span>
-          </button>
-          <button class="vote-btn ${myResponse?.response === 'no' ? 'selected-no' : ''}" data-vote="no">
-            <span class="emoji">🔴</span><span class="label">Nicht dabei</span>
-          </button>
-        </div>
-
-        <label for="my-note">Notiz (optional)</label>
-        <textarea id="my-note" placeholder="z.B. 'nur Samstag', 'muss noch schauen'">${escape(myResponse?.note || '')}</textarea>
-
-        <div id="vote-feedback"></div>
-      </div>
-
-      <div class="card">
-        <h3>Wer ist am Start</h3>
-        <div class="stats">
-          <span class="stat-chip">🟢 ${counts.yes}</span>
-          <span class="stat-chip">🟡 ${counts.maybe}</span>
-          <span class="stat-chip">🔴 ${counts.no}</span>
-        </div>
-        <div class="responses-list">
-          ${responses && responses.length > 0 ? responses.map(r => `
-            <div class="response-item">
-              <span class="response-emoji">${r.response === 'yes' ? '🟢' : r.response === 'maybe' ? '🟡' : '🔴'}</span>
-              <span class="name">${escape(r.user_name)}</span>
-              ${r.note ? `<span class="note">— ${escape(r.note)}</span>` : ''}
-            </div>
-          `).join('') : '<p class="muted">Noch niemand hat abgestimmt.</p>'}
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Link teilen</h3>
-        <div class="share-box">
-          <code>${escape(window.location.href)}</code>
-          <button class="btn-ghost" id="copy-btn">kopieren</button>
-        </div>
-        <button class="btn-ghost" style="margin-top:14px;width:100%" onclick="window.location.href=window.location.pathname">+ Neues Event</button>
-      </div>
-    `;
-
-    document.querySelectorAll('.vote-btn').forEach(btn => {
-      btn.addEventListener('click', () => castVote(event.id, btn.dataset.vote));
-    });
-    document.getElementById('copy-btn').addEventListener('click', copyLink);
-
-    // Live-Refresh alle 8s
-    scheduleRefresh(event);
   }
 
   let refreshTimer = null;
   function scheduleRefresh(event) {
     if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(() => loadAndRenderEventView(event), 8000);
+    refreshTimer = setInterval(() => loadAndRenderEventView(event, true), 8000);
+  }
+
+  async function loadAndRenderEventView(event, silent = false) {
+    const { data: responses } = await sb.from('kreis_responses').select('*').eq('event_id', event.id).order('created_at', { ascending: true });
+    const me = getName();
+    const myResp = responses?.find(r => r.user_name.toLowerCase() === me.toLowerCase());
+    const counts = {
+      yes: responses?.filter(r => r.response === 'yes').length || 0,
+      maybe: responses?.filter(r => r.response === 'maybe').length || 0,
+      no: responses?.filter(r => r.response === 'no').length || 0,
+    };
+    const url = eventUrl(event.id);
+    const owned = isMyEvent(event.id);
+    const canWebShare = 'share' in navigator;
+
+    $app.innerHTML = `
+      <article class="fade-in bg-surface-low rounded-3xl p-5 sm:p-7">
+        <div class="mb-4">
+          <h1 class="text-3xl sm:text-4xl font-medium tracking-tight leading-tight mb-2">${esc(event.title)}</h1>
+          <p class="text-on-surface-variant text-sm flex items-center gap-2">
+            <span class="material-symbols-outlined text-[18px]">person</span>
+            <span>Von ${esc(event.created_by)}</span>
+          </p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6 pt-3">
+          ${event.location ? `
+            <div class="flex items-start gap-3">
+              <span class="material-symbols-outlined text-on-surface-variant mt-0.5">location_on</span>
+              <div><p class="font-medium">${esc(event.location)}</p></div>
+            </div>
+          ` : ''}
+          ${event.date_start ? `
+            <div class="flex items-start gap-3">
+              <span class="material-symbols-outlined text-on-surface-variant mt-0.5">calendar_month</span>
+              <div><p class="font-medium">${esc(formatDateRange(event.date_start, event.date_end))}</p></div>
+            </div>
+          ` : ''}
+          ${event.link ? `
+            <div class="flex items-start gap-3 sm:col-span-2 mt-1">
+              <span class="material-symbols-outlined text-on-surface-variant mt-0.5">link</span>
+              <a href="${esc(event.link)}" target="_blank" rel="noopener" class="text-primary-container underline decoration-primary-container/30 hover:decoration-primary-container break-all">${esc(event.link)}</a>
+            </div>
+          ` : ''}
+        </div>
+        ${event.note ? `<p class="text-on-surface-variant italic leading-relaxed pt-4 mt-4 border-t border-outline-variant/15">${esc(event.note)}</p>` : ''}
+      </article>
+
+      <section class="fade-in bg-surface-low rounded-3xl p-5 sm:p-7">
+        <h2 class="text-on-surface-variant text-xs font-semibold tracking-widest mb-4 uppercase">Bist du dabei?</h2>
+        <div class="flex flex-col gap-4">
+          <input id="my-name" type="text" placeholder="Dein Name…" value="${esc(me)}" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors px-4 py-3">
+          <div class="grid grid-cols-3 gap-2 sm:gap-3">
+            <button class="vote-btn ${myResp?.response === 'yes' ? 'selected-yes' : ''} bg-surface-high hover:bg-surface-bright rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 transition-colors border-2 border-transparent" data-vote="yes">
+              <span class="text-2xl">🟢</span>
+              <span class="text-xs font-medium">Dabei</span>
+            </button>
+            <button class="vote-btn ${myResp?.response === 'maybe' ? 'selected-maybe' : ''} bg-surface-high hover:bg-surface-bright rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 transition-colors border-2 border-transparent" data-vote="maybe">
+              <span class="text-2xl">🟡</span>
+              <span class="text-xs font-medium">Vielleicht</span>
+            </button>
+            <button class="vote-btn ${myResp?.response === 'no' ? 'selected-no' : ''} bg-surface-high hover:bg-surface-bright rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 transition-colors border-2 border-transparent" data-vote="no">
+              <span class="text-2xl">🔴</span>
+              <span class="text-xs font-medium">Nicht dabei</span>
+            </button>
+          </div>
+          <textarea id="my-note" placeholder="Optionale Anmerkung (z.B. 'nur Samstag', 'Bringe Kuchen mit')" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors px-4 py-3 min-h-[60px] resize-none text-sm">${esc(myResp?.note || '')}</textarea>
+          <div id="vote-feedback"></div>
+        </div>
+      </section>
+
+      <section class="fade-in bg-surface-low rounded-3xl p-5 sm:p-7">
+        <div class="flex justify-between items-end mb-5 gap-3 flex-wrap">
+          <h2 class="text-on-surface-variant text-xs font-semibold tracking-widest uppercase">Wer ist am Start</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="bg-surface-highest rounded-full px-2.5 py-1">🟢 ${counts.yes}</span>
+            <span class="bg-surface-highest rounded-full px-2.5 py-1">🟡 ${counts.maybe}</span>
+            <span class="bg-surface-highest rounded-full px-2.5 py-1">🔴 ${counts.no}</span>
+          </div>
+        </div>
+        ${responses && responses.length > 0 ? `
+          <ul class="flex flex-col gap-3">
+            ${responses.map(r => `
+              <li class="flex items-start gap-3 bg-surface rounded-2xl p-3.5 border border-outline-variant/10">
+                <div class="w-9 h-9 rounded-full bg-primary-container/20 text-primary-container flex items-center justify-center font-medium text-sm shrink-0">${esc(initials(r.user_name))}</div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium truncate">${esc(r.user_name)}</span>
+                    <span class="text-base">${r.response === 'yes' ? '🟢' : r.response === 'maybe' ? '🟡' : '🔴'}</span>
+                  </div>
+                  ${r.note ? `<p class="text-on-surface-variant text-sm italic mt-0.5">${esc(r.note)}</p>` : ''}
+                </div>
+              </li>
+            `).join('')}
+          </ul>
+        ` : '<p class="text-on-surface-variant text-sm">Noch niemand hat abgestimmt.</p>'}
+      </section>
+
+      <section class="fade-in bg-surface-low rounded-3xl p-5 sm:p-7">
+        <h2 class="text-on-surface-variant text-xs font-semibold tracking-widest mb-4 uppercase">Link teilen</h2>
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-2 bg-surface-highest p-2 rounded-2xl border border-outline-variant/20">
+            <code class="flex-1 overflow-hidden px-2 text-on-surface-variant text-xs font-mono truncate">${esc(url)}</code>
+            <button id="copy-btn" class="bg-surface hover:bg-surface-bright text-sm px-4 py-2 rounded-xl transition-colors border border-outline-variant/10">kopieren</button>
+          </div>
+          <a id="whatsapp-btn" href="${esc(buildWhatsAppUrl(event, url))}" target="_blank" rel="noopener" class="w-full bg-[#25D366] hover:brightness-105 text-white font-medium rounded-2xl py-3 px-4 transition-all flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[20px]">chat</span>
+            <span>Via WhatsApp teilen</span>
+          </a>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button id="ics-btn" class="w-full bg-surface-highest hover:bg-surface-bright text-sm font-medium rounded-2xl py-3 px-4 transition-colors border border-outline-variant/20 flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-[20px]">calendar_add_on</span>
+              <span>In Kalender (.ics)</span>
+            </button>
+            ${canWebShare ? `
+              <button id="share-btn" class="w-full bg-surface-highest hover:bg-surface-bright text-sm font-medium rounded-2xl py-3 px-4 transition-colors border border-outline-variant/20 flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-[20px]">share</span>
+                <span>Teilen</span>
+              </button>
+            ` : `
+              <a href="?" class="w-full bg-surface-highest hover:bg-surface-bright text-sm font-medium rounded-2xl py-3 px-4 transition-colors border border-outline-variant/20 flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined text-[20px]">add</span>
+                <span>Neues Event</span>
+              </a>
+            `}
+          </div>
+          ${canWebShare ? `
+            <a href="?" class="text-center text-sm text-on-surface-variant hover:text-on-surface py-2 transition-colors">+ Neues Event</a>
+          ` : ''}
+        </div>
+      </section>
+
+      ${owned ? `
+      <section class="fade-in bg-surface-low rounded-3xl p-5 sm:p-7">
+        <h2 class="text-on-surface-variant text-xs font-semibold tracking-widest mb-4 uppercase">Dein Event</h2>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="edit-btn" class="w-full bg-surface-highest hover:bg-surface-bright text-sm font-medium rounded-2xl py-3 px-4 transition-colors border border-outline-variant/20 flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[20px]">edit</span>
+            <span>Bearbeiten</span>
+          </button>
+          <button id="delete-btn" class="w-full bg-transparent hover:bg-error/10 text-error text-sm font-medium rounded-2xl py-3 px-4 transition-colors border border-error/30 flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-[20px]">delete</span>
+            <span>Löschen</span>
+          </button>
+        </div>
+        <div id="action-feedback" class="mt-3"></div>
+      </section>
+      ` : ''}
+    `;
+
+    document.querySelectorAll('.vote-btn').forEach(btn => btn.addEventListener('click', () => castVote(event.id, btn.dataset.vote)));
+    document.getElementById('copy-btn').addEventListener('click', () => copyLink(url));
+    document.getElementById('ics-btn').addEventListener('click', () => downloadICS(event, url));
+    document.getElementById('share-btn')?.addEventListener('click', () => nativeShare(event, url));
+    document.getElementById('edit-btn')?.addEventListener('click', () => enterEditMode(event));
+    document.getElementById('delete-btn')?.addEventListener('click', () => confirmDelete(event));
+
+    if (!silent) scheduleRefresh(event);
   }
 
   async function castVote(eventId, vote) {
     const name = document.getElementById('my-name').value.trim();
     const note = document.getElementById('my-note').value.trim() || null;
     const fb = document.getElementById('vote-feedback');
-
     if (!name) {
-      fb.innerHTML = '<div class="error">Bitte deinen Namen eintragen.</div>';
+      fb.innerHTML = '<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Bitte deinen Namen eintragen.</div>';
       return;
     }
     setName(name);
-
-    const { error } = await sb.from('kreis_responses').upsert({
-      event_id: eventId, user_name: name, response: vote, note
-    }, { onConflict: 'event_id,user_name' });
-
+    const { error } = await sb.from('kreis_responses').upsert({ event_id: eventId, user_name: name, response: vote, note }, { onConflict: 'event_id,user_name' });
     if (error) {
-      fb.innerHTML = `<div class="error">Fehler: ${escape(error.message)}</div>`;
+      fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Fehler: ${esc(error.message)}</div>`;
       return;
     }
-    fb.innerHTML = '<div class="success">Danke. Gespeichert.</div>';
+    fb.innerHTML = '<div class="bg-yes/10 border border-yes/30 text-yes rounded-2xl px-4 py-3 text-sm">Danke. Gespeichert.</div>';
     setTimeout(async () => {
-      const { data: freshEvent } = await sb.from('kreis_events').select('*').eq('id', eventId).single();
-      if (freshEvent) await loadAndRenderEventView(freshEvent);
-    }, 800);
+      const { data: fresh } = await sb.from('kreis_events').select('*').eq('id', eventId).single();
+      if (fresh) await loadAndRenderEventView(fresh);
+    }, 700);
   }
 
-  async function copyLink() {
+  async function copyLink(url) {
     const btn = document.getElementById('copy-btn');
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(url);
       btn.textContent = 'kopiert ✓';
       setTimeout(() => { btn.textContent = 'kopieren'; }, 1500);
-    } catch (e) {
+    } catch {
       btn.textContent = 'Fehler';
     }
   }
 
-  // Router
-  const params = new URLSearchParams(window.location.search);
-  const eventId = params.get('event');
-  if (eventId) {
-    renderEvent(eventId);
-  } else {
-    renderCreate();
+  async function nativeShare(event, url) {
+    const text = `${event.title}${event.location ? ` · ${event.location}` : ''}${event.date_start ? ` · ${formatDateRange(event.date_start, event.date_end)}` : ''}`;
+    try {
+      await navigator.share({ title: event.title, text, url });
+    } catch (err) {
+      if (err.name !== 'AbortError') console.warn('[KREIS] share:', err);
+    }
   }
+
+  // --- Edit / Delete ---
+  function enterEditMode(event) {
+    if (refreshTimer) clearInterval(refreshTimer);
+    const fb = document.getElementById('action-feedback');
+    fb.innerHTML = `
+      <div class="bg-surface-high rounded-2xl p-4 flex flex-col gap-3 mt-2">
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs text-on-surface-variant">Titel</span>
+          <input id="edit-title" type="text" value="${esc(event.title)}" class="bg-surface-highest rounded-xl border border-outline-variant/20 px-3 py-2 focus:border-primary-container/50 focus:ring-0">
+        </label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs text-on-surface-variant">Ort</span>
+          <input id="edit-location" type="text" value="${esc(event.location || '')}" class="bg-surface-highest rounded-xl border border-outline-variant/20 px-3 py-2 focus:border-primary-container/50 focus:ring-0">
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex flex-col gap-1.5">
+            <span class="text-xs text-on-surface-variant">von</span>
+            <input id="edit-date-start" type="date" value="${esc(event.date_start || '')}" class="bg-surface-highest rounded-xl border border-outline-variant/20 px-3 py-2 focus:border-primary-container/50 focus:ring-0">
+          </label>
+          <label class="flex flex-col gap-1.5">
+            <span class="text-xs text-on-surface-variant">bis</span>
+            <input id="edit-date-end" type="date" value="${esc(event.date_end || '')}" class="bg-surface-highest rounded-xl border border-outline-variant/20 px-3 py-2 focus:border-primary-container/50 focus:ring-0">
+          </label>
+        </div>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs text-on-surface-variant">Link</span>
+          <input id="edit-link" type="url" value="${esc(event.link || '')}" class="bg-surface-highest rounded-xl border border-outline-variant/20 px-3 py-2 focus:border-primary-container/50 focus:ring-0">
+        </label>
+        <label class="flex flex-col gap-1.5">
+          <span class="text-xs text-on-surface-variant">Notiz</span>
+          <textarea id="edit-note" class="bg-surface-highest rounded-xl border border-outline-variant/20 px-3 py-2 focus:border-primary-container/50 focus:ring-0 min-h-[60px] resize-none">${esc(event.note || '')}</textarea>
+        </label>
+        <div class="grid grid-cols-2 gap-2 mt-1">
+          <button id="cancel-edit" class="bg-surface-highest hover:bg-surface-bright text-sm rounded-xl py-2.5 transition-colors">Abbrechen</button>
+          <button id="save-edit" class="bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-medium rounded-xl py-2.5 text-sm transition-shadow hover:shadow-[0_8px_20px_rgba(167,139,250,0.2)]">Speichern</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('cancel-edit').addEventListener('click', async () => {
+      fb.innerHTML = '';
+      scheduleRefresh(event);
+    });
+    document.getElementById('save-edit').addEventListener('click', async () => {
+      const updated = {
+        title: document.getElementById('edit-title').value.trim(),
+        location: document.getElementById('edit-location').value.trim() || null,
+        date_start: document.getElementById('edit-date-start').value || null,
+        date_end: document.getElementById('edit-date-end').value || null,
+        link: document.getElementById('edit-link').value.trim() || null,
+        note: document.getElementById('edit-note').value.trim() || null,
+      };
+      if (!updated.title) {
+        fb.innerHTML = '<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm mt-2">Titel ist Pflicht.</div>';
+        return;
+      }
+      const { data, error } = await sb.from('kreis_events').update(updated).eq('id', event.id).select().single();
+      if (error) {
+        fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm mt-2">Fehler: ${esc(error.message)}</div>`;
+        return;
+      }
+      updateMyEvent(data);
+      await loadAndRenderEventView(data);
+    });
+  }
+
+  function confirmDelete(event) {
+    if (refreshTimer) clearInterval(refreshTimer);
+    const fb = document.getElementById('action-feedback');
+    fb.innerHTML = `
+      <div class="bg-error/10 border border-error/30 rounded-2xl p-4 mt-2">
+        <p class="text-error text-sm mb-3">Sicher? Das Event und alle Antworten werden gelöscht. Nicht rückgängig machbar.</p>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="cancel-delete" class="bg-surface-highest hover:bg-surface-bright text-sm rounded-xl py-2.5 transition-colors">Doch nicht</button>
+          <button id="do-delete" class="bg-error/80 hover:bg-error text-on-surface text-sm font-medium rounded-xl py-2.5 transition-colors">Ja, löschen</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('cancel-delete').addEventListener('click', () => { fb.innerHTML = ''; scheduleRefresh(event); });
+    document.getElementById('do-delete').addEventListener('click', async () => {
+      const { error } = await sb.from('kreis_events').delete().eq('id', event.id);
+      if (error) {
+        fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm mt-2">Fehler: ${esc(error.message)}</div>`;
+        return;
+      }
+      removeMyEvent(event.id);
+      location.href = '?';
+    });
+  }
+
+  // ============================
+  // ROUTER
+  // ============================
+  const params = new URLSearchParams(location.search);
+  const eventId = params.get('event');
+  if (eventId) renderEvent(eventId); else renderCreate();
 </script>
 
 </body>
