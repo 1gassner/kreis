@@ -275,7 +275,7 @@
     a.href = objUrl;
     a.download = `kreis-${(event.title || 'event').toLowerCase().replace(/[^a-z0-9äöüß]+/g, '-').slice(0, 40)}.ics`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(objUrl), 1000);
+    setTimeout(() => URL.revokeObjectURL(objUrl), 3000);
   }
 
   // ============================
@@ -582,17 +582,17 @@
         <h2 class="text-on-surface-variant text-xs font-semibold tracking-widest mb-4 uppercase">Bist du dabei?</h2>
         <div class="flex flex-col gap-4">
           <input id="my-name" type="text" placeholder="Dein Name…" value="${esc(me)}" class="w-full bg-surface-highest rounded-2xl border border-outline-variant/20 focus:border-primary-container/50 focus:bg-surface-bright focus:ring-0 transition-colors px-4 py-3">
-          <div class="grid grid-cols-3 gap-2 sm:gap-3">
-            <button class="vote-btn ${myResp?.response === 'yes' ? 'selected-yes' : ''} bg-surface-high hover:bg-surface-bright rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 transition-colors border-2 border-transparent" data-vote="yes">
-              <span class="text-2xl">🟢</span>
+          <div class="grid grid-cols-3 gap-2 sm:gap-3" role="radiogroup" aria-label="Deine Antwort">
+            <button role="radio" aria-label="Ich bin dabei" aria-checked="${myResp?.response === 'yes' ? 'true' : 'false'}" aria-pressed="${myResp?.response === 'yes' ? 'true' : 'false'}" class="vote-btn ${myResp?.response === 'yes' ? 'selected-yes' : ''} bg-surface-high hover:bg-surface-bright rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 transition-colors border-2 border-transparent" data-vote="yes">
+              <span class="text-2xl" aria-hidden="true">🟢</span>
               <span class="text-xs font-medium">Dabei</span>
             </button>
-            <button class="vote-btn ${myResp?.response === 'maybe' ? 'selected-maybe' : ''} bg-surface-high hover:bg-surface-bright rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 transition-colors border-2 border-transparent" data-vote="maybe">
-              <span class="text-2xl">🟡</span>
+            <button role="radio" aria-label="Vielleicht" aria-checked="${myResp?.response === 'maybe' ? 'true' : 'false'}" aria-pressed="${myResp?.response === 'maybe' ? 'true' : 'false'}" class="vote-btn ${myResp?.response === 'maybe' ? 'selected-maybe' : ''} bg-surface-high hover:bg-surface-bright rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 transition-colors border-2 border-transparent" data-vote="maybe">
+              <span class="text-2xl" aria-hidden="true">🟡</span>
               <span class="text-xs font-medium">Vielleicht</span>
             </button>
-            <button class="vote-btn ${myResp?.response === 'no' ? 'selected-no' : ''} bg-surface-high hover:bg-surface-bright rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 transition-colors border-2 border-transparent" data-vote="no">
-              <span class="text-2xl">🔴</span>
+            <button role="radio" aria-label="Nicht dabei" aria-checked="${myResp?.response === 'no' ? 'true' : 'false'}" aria-pressed="${myResp?.response === 'no' ? 'true' : 'false'}" class="vote-btn ${myResp?.response === 'no' ? 'selected-no' : ''} bg-surface-high hover:bg-surface-bright rounded-2xl p-4 flex flex-col items-center justify-center gap-1.5 transition-colors border-2 border-transparent" data-vote="no">
+              <span class="text-2xl" aria-hidden="true">🔴</span>
               <span class="text-xs font-medium">Nicht dabei</span>
             </button>
           </div>
@@ -1393,7 +1393,7 @@
               ${durationSec ? `<p class="text-[11px] text-on-surface-variant mt-0.5">${mmss(durationSec)} · Suno V4</p>` : ''}
             </div>
           </div>
-          <audio id="song-player" controls preload="metadata" class="w-full mb-3" style="height:44px">
+          <audio id="song-player" controls preload="none" class="w-full mb-3" style="height:44px">
             <source src="${esc(audioUrl)}" type="audio/mpeg">
           </audio>
           <div class="flex gap-2 mb-3 flex-wrap">
@@ -1561,6 +1561,10 @@
 
     const modal = document.createElement('div');
     modal.className = 'film-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Einladungs-Film Player');
+    modal.tabIndex = -1;
     modal.innerHTML = `
       <div class="film-stage">
         <div class="film-progress" id="film-progress"></div>
@@ -1569,10 +1573,10 @@
                style="background-image:url('${esc(s.url)}')"></div>
         `).join('')}
         <div class="film-caption" id="film-caption"></div>
-        <button class="film-close" aria-label="Schließen">✕</button>
+        <button class="film-close" aria-label="Film schließen">✕</button>
       </div>
       <p class="film-hint" id="film-hint">Film startet… Ton einschalten am Handy!</p>
-      <audio id="film-audio" preload="auto" playsinline>
+      <audio id="film-audio" preload="metadata" playsinline>
         <source src="${esc(filmAssets.song.audio_url)}" type="audio/mpeg">
       </audio>
     `;
@@ -1584,67 +1588,85 @@
     const caption = modal.querySelector('#film-caption');
     const progress = modal.querySelector('#film-progress');
     const hint = modal.querySelector('#film-hint');
+    const closeBtn = modal.querySelector('.film-close');
 
-    // Captions basierend auf Event-Daten + Song-Title
+    // Captions basierend auf Event-Daten
     const captions = [
       `${event.title || ''}`,
       event.location ? `📍 ${event.location}` : (event.date_start ? formatDate(event.date_start) : ''),
       filmAssets.song.meta?.song_title ? `🎵 ${filmAssets.song.meta.song_title}` : '',
-      event.date_start ? `Wer ist dabei?` : 'Wer ist dabei?',
+      'Wer ist dabei?',
     ];
 
-    let currentIdx = 0;
-    let slideInterval = null;
+    // State + cleanup-handles (damit close() alle entfernen kann)
+    const state = {
+      slideInterval: null,
+      captionTimeout: null,
+      handlers: { keydown: null, timeupdate: null, ended: null, stageClick: null },
+    };
 
     function showSlide(i) {
       slides.forEach(s => s.classList.remove('active'));
       slides[i]?.classList.add('active');
       caption.textContent = captions[i] || '';
       caption.classList.add('visible');
-      setTimeout(() => caption.classList.remove('visible'), 3500);
+      if (state.captionTimeout) clearTimeout(state.captionTimeout);
+      state.captionTimeout = setTimeout(() => caption.classList.remove('visible'), 3500);
     }
 
     function startPlayback() {
       hint.textContent = 'spielt…';
       audio.play().then(() => {
-        const totalDuration = audio.duration || 172; // fallback 2:52
+        const totalDuration = audio.duration || 172;
         const slideDuration = totalDuration / slides.length;
         showSlide(0);
         let i = 0;
-        slideInterval = setInterval(() => {
+        state.slideInterval = setInterval(() => {
           i++;
-          if (i >= slides.length) { clearInterval(slideInterval); return; }
-          currentIdx = i;
+          if (i >= slides.length) { clearInterval(state.slideInterval); state.slideInterval = null; return; }
           showSlide(i);
         }, slideDuration * 1000);
 
-        audio.addEventListener('timeupdate', () => {
+        state.handlers.timeupdate = () => {
           progress.style.width = `${(audio.currentTime / totalDuration) * 100}%`;
-        });
-        audio.addEventListener('ended', () => {
+        };
+        state.handlers.ended = () => {
           hint.textContent = 'Film zu Ende. ❤️';
-          clearInterval(slideInterval);
-        });
+          if (state.slideInterval) { clearInterval(state.slideInterval); state.slideInterval = null; }
+        };
+        audio.addEventListener('timeupdate', state.handlers.timeupdate);
+        audio.addEventListener('ended', state.handlers.ended);
       }).catch(() => {
         hint.innerHTML = '<span style="color:#f59e0b">⚠️ Autoplay blockiert. Tippe auf den Film zum Starten.</span>';
-        modal.querySelector('.film-stage').onclick = () => {
+        state.handlers.stageClick = () => {
           audio.play().then(startPlayback).catch(() => {});
         };
+        modal.querySelector('.film-stage').addEventListener('click', state.handlers.stageClick, { once: true });
       });
     }
 
-    // Close
+    // Clean shutdown — entfernt alle Listener + Intervals
     const close = () => {
-      clearInterval(slideInterval);
-      audio.pause();
+      if (state.slideInterval) clearInterval(state.slideInterval);
+      if (state.captionTimeout) clearTimeout(state.captionTimeout);
+      try { audio.pause(); } catch {}
+      if (state.handlers.timeupdate) audio.removeEventListener('timeupdate', state.handlers.timeupdate);
+      if (state.handlers.ended) audio.removeEventListener('ended', state.handlers.ended);
+      if (state.handlers.keydown) document.removeEventListener('keydown', state.handlers.keydown);
+      audio.src = '';  // stop buffering
       document.body.style.overflow = '';
       modal.remove();
     };
-    modal.querySelector('.film-close').onclick = close;
-    modal.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 
-    // Small delay für smooth entry
-    setTimeout(startPlayback, 400);
+    closeBtn.addEventListener('click', close);
+    state.handlers.keydown = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', state.handlers.keydown);
+
+    // Focus-Trap: Close-Button kriegt initial Focus (für Keyboard-User)
+    setTimeout(() => closeBtn.focus(), 50);
+
+    // Playback startet sofort (setTimeout-Hack entfernt)
+    startPlayback();
   }
 
   async function shareFilmLink(event) {
@@ -1699,15 +1721,20 @@
         wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
       });
 
-      btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">image</span><span>Bilder laden…</span>';
-      for (let i = 0; i < filmAssets.scenes.length; i++) {
-        const resp = await fetch(filmAssets.scenes[i].url);
-        const buf = new Uint8Array(await resp.arrayBuffer());
-        await ffmpeg.writeFile(`img${i}.jpg`, buf);
+      btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">image</span><span>Assets parallel laden…</span>';
+      // PARALLEL: 4 Bilder + 1 Song via Promise.all (spart ~4s bei 1MB/Asset)
+      const [imageBuffers, songBuf] = await Promise.all([
+        Promise.all(filmAssets.scenes.map(async (s) => {
+          const resp = await fetch(s.url);
+          return new Uint8Array(await resp.arrayBuffer());
+        })),
+        fetch(filmAssets.song.audio_url).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
+      ]);
+      // Write in ffmpeg virtual FS
+      for (let i = 0; i < imageBuffers.length; i++) {
+        await ffmpeg.writeFile(`img${i}.jpg`, imageBuffers[i]);
       }
-      btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">music_note</span><span>Song laden…</span>';
-      const songResp = await fetch(filmAssets.song.audio_url);
-      await ffmpeg.writeFile('song.mp3', new Uint8Array(await songResp.arrayBuffer()));
+      await ffmpeg.writeFile('song.mp3', songBuf);
 
       btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">movie</span><span>rendere MP4 (1-3 Min)…</span>';
       // Concat 4 images with Ken-Burns to video, sync with audio, fade transitions
@@ -1737,7 +1764,7 @@
       a.href = url;
       a.download = `kreis-${(event.title || 'film').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.mp4`;
       document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      setTimeout(() => URL.revokeObjectURL(url), 15000);
 
       btn.disabled = false;
       btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">check_circle</span><span>MP4 erstellt ✓</span>';

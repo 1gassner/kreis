@@ -28,12 +28,15 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const { data: event, error: evErr } = await sb
-      .from("kreis_events").select("*").eq("id", event_id).single();
+    // Parallel: Event + Responses (spart ~300-500ms)
+    const [eventRes, responsesRes] = await Promise.all([
+      sb.from("kreis_events").select("*").eq("id", event_id).single(),
+      sb.from("kreis_responses").select("*").eq("event_id", event_id).order("created_at", { ascending: true }),
+    ]);
+    const event = eventRes.data;
+    const evErr = eventRes.error;
+    const responses = responsesRes.data;
     if (evErr || !event) return json({ error: "Event not found" }, 404);
-
-    const { data: responses } = await sb
-      .from("kreis_responses").select("*").eq("event_id", event_id).order("created_at", { ascending: true });
 
     const guests: { name: string; response: string; note: string | null }[] = [];
     if (guest_names?.length) {
