@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0a">
+<title>KREIS</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='none' stroke='%23a78bfa' stroke-width='8'/%3E%3C/svg%3E">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a;
+    --bg-card: #161616;
+    --bg-elev: #222;
+    --border: #2a2a2a;
+    --text: #f5f5f5;
+    --text-dim: #9a9a9a;
+    --accent: #a78bfa;
+    --yes: #22c55e;
+    --maybe: #eab308;
+    --no: #ef4444;
+  }
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    padding: 20px;
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    max-width: 640px;
+    margin: 0 auto;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 30px;
+    padding-top: env(safe-area-inset-top);
+  }
+  header .logo {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--accent);
+    border-radius: 50%;
+  }
+  header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+  }
+  header .tagline {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  h2 {
+    font-size: 18px;
+    margin-bottom: 14px;
+    color: var(--text);
+  }
+  h3 {
+    font-size: 14px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    margin-top: 12px;
+  }
+  label:first-of-type { margin-top: 0; }
+  input, textarea, button {
+    font-family: inherit;
+    font-size: 15px;
+  }
+  input, textarea {
+    width: 100%;
+    background: var(--bg-elev);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent); }
+  input.missing, textarea.missing {
+    border-color: var(--no);
+    background: rgba(239, 68, 68, 0.06);
+  }
+  .field-hint-creator {
+    font-size: 12px;
+    color: var(--accent);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  button {
+    cursor: pointer;
+    border: none;
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    transition: transform 0.05s, opacity 0.15s;
+  }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary {
+    background: var(--accent);
+    color: #1a1a1a;
+    width: 100%;
+    margin-top: 18px;
+    font-size: 16px;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+  .vote-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .vote-btn {
+    padding: 16px 8px;
+    border-radius: 12px;
+    background: var(--bg-elev);
+    color: var(--text);
+    border: 2px solid transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .vote-btn .emoji { font-size: 26px; }
+  .vote-btn .label { font-size: 12px; color: var(--text-dim); }
+  .vote-btn.selected-yes { border-color: var(--yes); background: rgba(34, 197, 94, 0.1); }
+  .vote-btn.selected-maybe { border-color: var(--maybe); background: rgba(234, 179, 8, 0.1); }
+  .vote-btn.selected-no { border-color: var(--no); background: rgba(239, 68, 68, 0.1); }
+
+  .event-meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 14px;
+    font-size: 14px;
+    margin-bottom: 14px;
+  }
+  .event-meta .key { color: var(--text-dim); }
+  .event-meta .val { color: var(--text); }
+  .event-meta a { color: var(--accent); text-decoration: none; word-break: break-all; }
+
+  .responses-list { margin-top: 8px; }
+  .response-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .response-item:last-child { border-bottom: none; }
+  .response-item .name { font-weight: 600; flex: 1; }
+  .response-item .note { color: var(--text-dim); font-size: 13px; font-style: italic; }
+  .response-emoji { font-size: 22px; width: 30px; text-align: center; }
+
+  .stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
+    font-size: 14px;
+  }
+  .stat-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-elev);
+    border-radius: 20px;
+    color: var(--text-dim);
+  }
+
+  .share-box {
+    background: var(--bg-elev);
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .share-box code {
+    flex: 1;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    word-break: break-all;
+  }
+
+  .error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    margin: 10px 0;
+  }
+  .success {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #86efac;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    margin: 10px 0;
+  }
+
+  .hidden { display: none !important; }
+  .loading { text-align: center; color: var(--text-dim); padding: 40px 0; }
+  .muted { color: var(--text-dim); font-size: 13px; }
+
+  .nl-box { position: relative; }
+  .nl-input {
+    min-height: 90px;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+  .nl-input::placeholder { color: #666; }
+  .btn-ai {
+    background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
+    color: #fff;
+    width: 100%;
+    margin-top: 12px;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-ai:hover { filter: brightness(1.1); }
+  .sparkle { animation: sparkle 2s ease-in-out infinite; }
+  @keyframes sparkle {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.15); }
+  }
+  .preview-hint {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin: -4px 0 10px;
+    font-style: italic;
+  }
+  .toggle-link {
+    display: inline-block;
+    font-size: 13px;
+    color: var(--text-dim);
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 14px;
+  }
+  .toggle-link:hover { color: var(--accent); }
+  .friend-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .chip {
+    background: rgba(167, 139, 250, 0.15);
+    color: var(--accent);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 13px;
+    border: 1px solid rgba(167, 139, 250, 0.3);
+  }
+  footer {
+    margin-top: 40px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    padding-bottom: 20px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"></div>
+  <h1>KREIS</h1>
+  <span class="tagline">für enge Menschen</span>
+</header>
+
+<main id="app">
+  <div class="loading">lade...</div>
+</main>
+
+<footer>built for Jürgen &amp; Freunde · v0.1</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = 'https://sgsufdxggvfgejwiclot.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnc3VmZHhnZ3ZmZ2Vqd2ljbG90Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2OTI2OTQsImV4cCI6MjA4OTI2ODY5NH0.PpS8WL9Z3a9kGObV1IbpRyOfaZGm0NtEovLxLlAfA4A';
+  if (!window.supabase) {
+    document.getElementById('app').innerHTML = '<div class="card"><div class="error">Supabase-Library konnte nicht geladen werden. Bist du offline oder blockt ein Adblocker jsdelivr?</div></div>';
+    throw new Error('supabase-js not loaded');
+  }
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  window.addEventListener('error', (e) => {
+    console.error('[KREIS] Uncaught:', e.error || e.message);
+  });
+
+  const $app = document.getElementById('app');
+  const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  const getName = () => localStorage.getItem('kreis_name') || '';
+  const setName = (n) => localStorage.setItem('kreis_name', n);
+
+  function formatDateRange(start, end) {
+    if (!start) return '—';
+    const opts = { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' };
+    const a = new Date(start).toLocaleDateString('de-DE', opts);
+    if (!end || end === start) return a;
+    const b = new Date(end).toLocaleDateString('de-DE', opts);
+    return `${a} – ${b}`;
+  }
+
+  const PARSE_URL = `${SUPABASE_URL}/functions/v1/kreis-parse-event`;
+
+  function renderCreate(prefill = null) {
+    const p = prefill || {};
+    const hasPrefill = !!prefill;
+
+    $app.innerHTML = `
+      <div class="card nl-box">
+        <h2>Was hast du vor?</h2>
+        <p class="muted" style="margin-bottom:12px">Einfach tippen — KREIS versteht's. Keine Formular-Gefummel.</p>
+
+        <textarea id="nl-input" class="nl-input" placeholder="z.B. 'Klettern Reutlingen nächsten Samstag 15 Uhr mit Nino und Cindy'" autofocus>${escape(p._raw || '')}</textarea>
+        <button class="btn-ai" id="parse-btn">
+          <span class="sparkle">✨</span>
+          <span id="parse-btn-text">${hasPrefill ? 'Neu parsen' : 'Event verstehen'}</span>
+        </button>
+        <div id="parse-feedback"></div>
+        <span class="toggle-link" id="toggle-manual">${hasPrefill ? '' : 'lieber manuell ausfüllen'}</span>
+      </div>
+
+      <div class="card ${hasPrefill ? '' : 'hidden'}" id="preview-card">
+        <h3>${hasPrefill ? 'Passt das?' : 'Manuell'}</h3>
+        <p class="preview-hint ${hasPrefill ? '' : 'hidden'}">KREIS hat das verstanden. Ändern wo nötig.</p>
+
+        <label for="creator">Dein Name <span style="color:var(--accent)">*</span></label>
+        <input id="creator" placeholder="z.B. Jürgen" value="${escape(getName())}">
+        ${!getName() ? '<div class="field-hint-creator">← Damit deine Freunde wissen, von wem die Einladung kommt.</div>' : ''}
+
+        <label for="title">Was? <span style="color:var(--accent)">*</span></label>
+        <input id="title" placeholder="z.B. Klettern im Kletterwald" value="${escape(p.title || '')}">
+
+        <label for="location">Wo?</label>
+        <input id="location" placeholder="z.B. Reutlingen Hallenbad" value="${escape(p.location || '')}">
+
+        <div class="row">
+          <div>
+            <label for="date_start">Wann? (von)</label>
+            <input id="date_start" type="date" value="${escape(p.date_start || '')}">
+          </div>
+          <div>
+            <label for="date_end">bis (optional)</label>
+            <input id="date_end" type="date" value="${escape(p.date_end || '')}">
+          </div>
+        </div>
+
+        <label for="link">Link (optional)</label>
+        <input id="link" type="url" placeholder="https://..." value="${escape(p.link || '')}">
+
+        <label for="note">Notiz (optional)</label>
+        <textarea id="note" placeholder="Irgendwas Wichtiges?">${escape(p.note || '')}</textarea>
+
+        ${Array.isArray(p.friends) && p.friends.length > 0 ? `
+          <label>Freunde, die du nennst</label>
+          <div class="friend-chips">
+            ${p.friends.map(f => `<span class="chip">${escape(f)}</span>`).join('')}
+          </div>
+          <p class="muted" style="margin-top:6px;font-size:12px">(Nur als Hinweis — eingeladen wird über den Link.)</p>
+        ` : ''}
+
+        <button class="btn-primary" id="create-btn">Event erstellen &amp; Link kopieren</button>
+        <div id="create-feedback"></div>
+      </div>
+    `;
+
+    document.getElementById('parse-btn').addEventListener('click', parseNL);
+    document.getElementById('create-btn').addEventListener('click', createEvent);
+    document.getElementById('nl-input').addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        parseNL();
+      }
+    });
+    const tm = document.getElementById('toggle-manual');
+    if (tm) tm.addEventListener('click', () => {
+      document.getElementById('preview-card').classList.remove('hidden');
+      tm.style.display = 'none';
+      document.getElementById(getName() ? 'title' : 'creator').focus();
+    });
+
+    // Auto-focus Name-Feld nach Parse wenn leer, sonst Create-Button hervorheben
+    if (hasPrefill) {
+      setTimeout(() => {
+        if (!getName()) {
+          document.getElementById('creator').focus();
+        }
+      }, 100);
+    }
+  }
+
+  async function parseNL() {
+    const text = document.getElementById('nl-input').value.trim();
+    const fb = document.getElementById('parse-feedback');
+    const btn = document.getElementById('parse-btn');
+    const btnText = document.getElementById('parse-btn-text');
+
+    if (!text) {
+      fb.innerHTML = '<div class="error">Erst was eintippen, dann KREIS zaubern lassen.</div>';
+      return;
+    }
+
+    btn.disabled = true;
+    btnText.textContent = 'denke nach...';
+    fb.innerHTML = '';
+
+    try {
+      const resp = await fetch(PARSE_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+          'apikey': SUPABASE_KEY,
+        },
+        body: JSON.stringify({
+          text,
+          today: new Date().toISOString().slice(0, 10),
+        }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        fb.innerHTML = `<div class="error">KREIS hat's nicht geschnallt: ${escape(err.error || 'unbekannt')}. Nochmal probieren oder manuell.</div>`;
+        btn.disabled = false;
+        btnText.textContent = 'Event verstehen';
+        return;
+      }
+
+      const { parsed } = await resp.json();
+      parsed._raw = text;
+      renderCreate(parsed);
+    } catch (err) {
+      fb.innerHTML = `<div class="error">Netzwerk-Fehler: ${escape(err.message || err)}. Offline?</div>`;
+      btn.disabled = false;
+      btnText.textContent = 'Event verstehen';
+    }
+  }
+
+  async function createEvent() {
+    const titleEl = document.getElementById('title');
+    const creatorEl = document.getElementById('creator');
+    const title = titleEl.value.trim();
+    const locationVal = document.getElementById('location').value.trim();
+    const date_start = document.getElementById('date_start').value || null;
+    const date_end = document.getElementById('date_end').value || null;
+    const link = document.getElementById('link').value.trim() || null;
+    const note = document.getElementById('note').value.trim() || null;
+    const creator = creatorEl.value.trim();
+    const fb = document.getElementById('create-feedback');
+    const btn = document.getElementById('create-btn');
+
+    // Reset visual state
+    titleEl.classList.remove('missing');
+    creatorEl.classList.remove('missing');
+
+    const missing = [];
+    if (!creator) { missing.push('Dein Name'); creatorEl.classList.add('missing'); }
+    if (!title) { missing.push('Was (Titel)'); titleEl.classList.add('missing'); }
+
+    if (missing.length > 0) {
+      fb.innerHTML = `<div class="error">Fehlt noch: <strong>${missing.join(' und ')}</strong>. Rot markiert.</div>`;
+      // Fokus aufs erste leere Feld
+      (missing[0] === 'Dein Name' ? creatorEl : titleEl).focus();
+      return;
+    }
+
+    setName(creator);
+    btn.disabled = true;
+    btn.textContent = 'erstelle...';
+
+    const { data, error } = await sb.from('kreis_events').insert({
+      title, location: locationVal || null, date_start, date_end, link, note, created_by: creator
+    }).select().single();
+
+    if (error) {
+      fb.innerHTML = `<div class="error">Fehler: ${escape(error.message)}</div>`;
+      btn.disabled = false;
+      btn.textContent = 'Event erstellen & Link kopieren';
+      return;
+    }
+
+    // Creator vote: yes by default
+    await sb.from('kreis_responses').insert({
+      event_id: data.id, user_name: creator, response: 'yes'
+    });
+
+    const url = `${window.location.origin}${window.location.pathname}?event=${data.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      fb.innerHTML = `<div class="success">Erstellt. Link kopiert — jetzt in WhatsApp einfügen.</div>`;
+    } catch (e) {
+      fb.innerHTML = `<div class="success">Erstellt. Link:<br><code style="word-break:break-all">${escape(url)}</code></div>`;
+    }
+
+    setTimeout(() => { window.location.href = url; }, 1200);
+  }
+
+  async function renderEvent(eventId) {
+    $app.innerHTML = '<div class="loading">lade Event...</div>';
+
+    const { data: event, error } = await sb
+      .from('kreis_events')
+      .select('*')
+      .eq('id', eventId)
+      .single();
+
+    if (error || !event) {
+      $app.innerHTML = `
+        <div class="card">
+          <div class="error">Event nicht gefunden. Link kaputt?</div>
+          <button class="btn-ghost" onclick="window.location.href=window.location.pathname" style="margin-top:14px">Neues Event erstellen</button>
+        </div>
+      `;
+      return;
+    }
+
+    await loadAndRenderEventView(event);
+  }
+
+  async function loadAndRenderEventView(event) {
+    const { data: responses } = await sb
+      .from('kreis_responses')
+      .select('*')
+      .eq('event_id', event.id)
+      .order('created_at', { ascending: true });
+
+    const me = getName();
+    const myResponse = responses?.find(r => r.user_name.toLowerCase() === me.toLowerCase());
+    const counts = {
+      yes: responses?.filter(r => r.response === 'yes').length || 0,
+      maybe: responses?.filter(r => r.response === 'maybe').length || 0,
+      no: responses?.filter(r => r.response === 'no').length || 0,
+    };
+
+    $app.innerHTML = `
+      <div class="card">
+        <h2>${escape(event.title)}</h2>
+        <div class="event-meta">
+          ${event.location ? `<span class="key">Wo</span><span class="val">${escape(event.location)}</span>` : ''}
+          ${event.date_start ? `<span class="key">Wann</span><span class="val">${formatDateRange(event.date_start, event.date_end)}</span>` : ''}
+          ${event.link ? `<span class="key">Link</span><span class="val"><a href="${escape(event.link)}" target="_blank" rel="noopener">${escape(event.link)}</a></span>` : ''}
+          <span class="key">Von</span><span class="val">${escape(event.created_by)}</span>
+        </div>
+        ${event.note ? `<p class="muted" style="margin-top:8px">${escape(event.note)}</p>` : ''}
+      </div>
+
+      <div class="card">
+        <h3>Bist du dabei?</h3>
+
+        <label for="my-name">Dein Name</label>
+        <input id="my-name" placeholder="Nino / Cindy / ..." value="${escape(me)}">
+
+        <div class="vote-grid" style="margin-top:14px">
+          <button class="vote-btn ${myResponse?.response === 'yes' ? 'selected-yes' : ''}" data-vote="yes">
+            <span class="emoji">🟢</span><span class="label">Dabei</span>
+          </button>
+          <button class="vote-btn ${myResponse?.response === 'maybe' ? 'selected-maybe' : ''}" data-vote="maybe">
+            <span class="emoji">🟡</span><span class="label">Vielleicht</span>
+          </button>
+          <button class="vote-btn ${myResponse?.response === 'no' ? 'selected-no' : ''}" data-vote="no">
+            <span class="emoji">🔴</span><span class="label">Nicht dabei</span>
+          </button>
+        </div>
+
+        <label for="my-note">Notiz (optional)</label>
+        <textarea id="my-note" placeholder="z.B. 'nur Samstag', 'muss noch schauen'">${escape(myResponse?.note || '')}</textarea>
+
+        <div id="vote-feedback"></div>
+      </div>
+
+      <div class="card">
+        <h3>Wer ist am Start</h3>
+        <div class="stats">
+          <span class="stat-chip">🟢 ${counts.yes}</span>
+          <span class="stat-chip">🟡 ${counts.maybe}</span>
+          <span class="stat-chip">🔴 ${counts.no}</span>
+        </div>
+        <div class="responses-list">
+          ${responses && responses.length > 0 ? responses.map(r => `
+            <div class="response-item">
+              <span class="response-emoji">${r.response === 'yes' ? '🟢' : r.response === 'maybe' ? '🟡' : '🔴'}</span>
+              <span class="name">${escape(r.user_name)}</span>
+              ${r.note ? `<span class="note">— ${escape(r.note)}</span>` : ''}
+            </div>
+          `).join('') : '<p class="muted">Noch niemand hat abgestimmt.</p>'}
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Link teilen</h3>
+        <div class="share-box">
+          <code>${escape(window.location.href)}</code>
+          <button class="btn-ghost" id="copy-btn">kopieren</button>
+        </div>
+        <button class="btn-ghost" style="margin-top:14px;width:100%" onclick="window.location.href=window.location.pathname">+ Neues Event</button>
+      </div>
+    `;
+
+    document.querySelectorAll('.vote-btn').forEach(btn => {
+      btn.addEventListener('click', () => castVote(event.id, btn.dataset.vote));
+    });
+    document.getElementById('copy-btn').addEventListener('click', copyLink);
+
+    // Live-Refresh alle 8s
+    scheduleRefresh(event);
+  }
+
+  let refreshTimer = null;
+  function scheduleRefresh(event) {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => loadAndRenderEventView(event), 8000);
+  }
+
+  async function castVote(eventId, vote) {
+    const name = document.getElementById('my-name').value.trim();
+    const note = document.getElementById('my-note').value.trim() || null;
+    const fb = document.getElementById('vote-feedback');
+
+    if (!name) {
+      fb.innerHTML = '<div class="error">Bitte deinen Namen eintragen.</div>';
+      return;
+    }
+    setName(name);
+
+    const { error } = await sb.from('kreis_responses').upsert({
+      event_id: eventId, user_name: name, response: vote, note
+    }, { onConflict: 'event_id,user_name' });
+
+    if (error) {
+      fb.innerHTML = `<div class="error">Fehler: ${escape(error.message)}</div>`;
+      return;
+    }
+    fb.innerHTML = '<div class="success">Danke. Gespeichert.</div>';
+    setTimeout(async () => {
+      const { data: freshEvent } = await sb.from('kreis_events').select('*').eq('id', eventId).single();
+      if (freshEvent) await loadAndRenderEventView(freshEvent);
+    }, 800);
+  }
+
+  async function copyLink() {
+    const btn = document.getElementById('copy-btn');
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      btn.textContent = 'kopiert ✓';
+      setTimeout(() => { btn.textContent = 'kopieren'; }, 1500);
+    } catch (e) {
+      btn.textContent = 'Fehler';
+    }
+  }
+
+  // Router
+  const params = new URLSearchParams(window.location.search);
+  const eventId = params.get('event');
+  if (eventId) {
+    renderEvent(eventId);
+  } else {
+    renderCreate();
+  }
+</script>
+
+</body>
+</html>
