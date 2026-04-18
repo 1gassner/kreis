@@ -130,6 +130,16 @@ Antworte NUR mit diesem JSON ohne Markdown-Fences:
       songTitle = `${event.title} Song`;
     }
 
+    // Empty-Lyrics-Guard: wenn Claude leeren/zu-kurzen Text lieferte → Error statt Suno-Call
+    // mit Garbage-Prompt (kostet ansonsten Suno-Credit ohne Nutzen)
+    if (!lyrics || lyrics.trim().length < 50) {
+      return json({
+        error: "Claude hat keine verwertbaren Lyrics geliefert",
+        detail: `Response nur ${lyrics.length} Zeichen. Vermutlich stop_reason=max_tokens oder Safety-Block. Retry möglich.`,
+        raw_preview: raw.slice(0, 200),
+      }, 502);
+    }
+
     // Insert row with kind='song' (standardized) BEFORE Suno call to get gen_id for callback
     const { data: gen } = await sb.from("kreis_generated").insert({
       event_id,
