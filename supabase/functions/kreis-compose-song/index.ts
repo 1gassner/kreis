@@ -108,7 +108,7 @@ Antworte NUR mit diesem JSON:
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20241022",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 1024,
         messages: [{ role: "user", content: prompt }],
       }),
@@ -123,12 +123,19 @@ Antworte NUR mit diesem JSON:
 
     let lyrics: string, styleOfMusic: string, songTitle: string;
     try {
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (!m) throw new Error("no JSON");
-      const p = JSON.parse(m[0]);
-      lyrics = p.lyrics;
-      styleOfMusic = p.style_of_music;
-      songTitle = p.title;
+      // Strip Markdown code fences first (```json ... ``` or ``` ... ```)
+      const stripped = raw
+        .replace(/^\s*```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/, "")
+        .trim();
+      // Find the outermost JSON object
+      const first = stripped.indexOf("{");
+      const last = stripped.lastIndexOf("}");
+      if (first < 0 || last < 0) throw new Error("no JSON");
+      const p = JSON.parse(stripped.slice(first, last + 1));
+      lyrics = p.lyrics || raw;
+      styleOfMusic = p.style_of_music || finalStyle;
+      songTitle = p.title || `${event.title} Song`;
     } catch {
       lyrics = raw;
       styleOfMusic = finalStyle;

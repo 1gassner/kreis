@@ -1031,10 +1031,23 @@
     }
   }
 
+  function scoreBadge(score) {
+    if (score == null) return '';
+    const color = score >= 8 ? 'bg-yes/20 text-yes border-yes/40'
+                : score >= 6 ? 'bg-primary-container/20 text-primary-container border-primary-container/40'
+                : score >= 4 ? 'bg-maybe/20 text-maybe border-maybe/40'
+                :              'bg-no/20 text-no border-no/40';
+    const stars = '★'.repeat(Math.round(score / 2)) + '☆'.repeat(5 - Math.round(score / 2));
+    return `<span class="absolute top-2 right-2 ${color} border backdrop-blur text-[10px] font-medium px-2 py-1 rounded-full" title="Identity-Score: ${score}/10">${stars} ${score}</span>`;
+  }
+
   function renderComposeResult(plan) {
     const result = document.getElementById('compose-result');
     if (!result) return;
-    const scenes = plan.scenes || [];
+    const allScenes = plan.scenes || [];
+    const shown = allScenes.filter(s => s.image_url && s.shown !== false);
+    const hidden = allScenes.filter(s => s.image_url && s.shown === false);
+    const failed = allScenes.filter(s => !s.image_url);
 
     result.innerHTML = `
       ${plan.description ? `
@@ -1044,28 +1057,50 @@
           ${plan.song_hook ? `<p class="text-xs text-primary-container italic mt-2 pt-2 border-t border-outline-variant/15">🎵 Song-Hook: „${esc(plan.song_hook)}"</p>` : ''}
         </div>
       ` : ''}
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        ${scenes.map((s, i) => !s.image_url ? `
-          <div class="bg-surface-high rounded-2xl p-4 border border-error/30 text-error text-xs">
-            <p class="font-semibold">${esc(s.title)}</p>
-            <p class="mt-1">Fehler: ${esc((s.error || 'unbekannt').slice(0, 100))}</p>
-          </div>
-        ` : `
-          <div class="bg-surface-high rounded-2xl overflow-hidden">
-            <div class="relative">
-              <img src="${esc(s.image_url)}" alt="${esc(s.title)}" class="w-full aspect-[3/4] object-cover">
-              <span class="absolute bottom-2 left-2 bg-black/60 backdrop-blur text-white text-[11px] font-medium px-2 py-1 rounded-full">${esc(s.title)}</span>
+
+      ${plan.avg_identity_score != null ? `
+        <div class="flex items-center gap-2 mb-3 text-xs text-on-surface-variant">
+          <span class="material-symbols-outlined text-[16px]">verified</span>
+          <span>Identity-Check: <strong class="text-on-surface">${plan.shown_count || shown.length}/${allScenes.length}</strong> bestanden · Ø <strong class="text-on-surface">${plan.avg_identity_score}/10</strong></span>
+        </div>
+      ` : ''}
+
+      ${shown.length === 0 ? `
+        <div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">
+          Keine Szene hat den Identity-Check bestanden. Versuch's mit mehr / besseren Referenzfotos.
+        </div>
+      ` : `
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          ${shown.map(s => `
+            <div class="bg-surface-high rounded-2xl overflow-hidden">
+              <div class="relative">
+                <img src="${esc(s.image_url)}" alt="${esc(s.title)}" class="w-full aspect-[3/4] object-cover">
+                <span class="absolute bottom-2 left-2 bg-black/60 backdrop-blur text-white text-[11px] font-medium px-2 py-1 rounded-full">${esc(s.title)}</span>
+                ${scoreBadge(s.identity_score)}
+              </div>
+              <div class="flex gap-2 p-2">
+                <a href="${esc(s.image_url)}" target="_blank" rel="noopener" class="flex-1 bg-surface-highest hover:bg-surface-bright text-[11px] font-medium rounded-xl py-2 transition-colors text-center">öffnen</a>
+                <button data-share-url="${esc(s.image_url)}" class="share-scene-btn flex-1 bg-primary-container/20 hover:bg-primary-container/30 text-primary-container text-[11px] font-medium rounded-xl py-2 transition-colors">teilen</button>
+              </div>
+              ${Array.isArray(s.issues) && s.issues.length && s.identity_score < 8 ? `
+                <div class="px-2 pb-2 text-[10px] text-on-surface-variant italic">${esc(s.issues.slice(0, 2).join(' · '))}</div>
+              ` : ''}
             </div>
-            <div class="flex gap-2 p-2">
-              <a href="${esc(s.image_url)}" target="_blank" rel="noopener" class="flex-1 bg-surface-highest hover:bg-surface-bright text-[11px] font-medium rounded-xl py-2 transition-colors text-center">öffnen</a>
-              <button data-share-url="${esc(s.image_url)}" class="share-scene-btn flex-1 bg-primary-container/20 hover:bg-primary-container/30 text-primary-container text-[11px] font-medium rounded-xl py-2 transition-colors">teilen</button>
-            </div>
-          </div>
-        `).join('')}
-      </div>
+          `).join('')}
+        </div>
+      `}
+
+      ${(hidden.length > 0 || failed.length > 0) ? `
+        <details class="mt-4 text-xs text-on-surface-variant">
+          <summary class="cursor-pointer hover:text-on-surface">${hidden.length + failed.length} Szenen ausgefiltert (Identity zu schwach oder Fehler)</summary>
+          <ul class="mt-2 space-y-1 ml-4">
+            ${hidden.map(s => `<li>• <strong>${esc(s.title)}</strong> — Score ${s.identity_score}/10 (${esc((s.issues || []).join('; ').slice(0, 120))})</li>`).join('')}
+            ${failed.map(s => `<li>• <strong>${esc(s.title)}</strong> — Fehler: ${esc((s.error || 'unknown').slice(0, 120))}</li>`).join('')}
+          </ul>
+        </details>
+      ` : ''}
     `;
 
-    // Share-Buttons-Listeners
     result.querySelectorAll('.share-scene-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
         const url = btn.dataset.shareUrl;
