@@ -1,8 +1,10 @@
-// kreis-compose-song v5: Lyrics via Claude Haiku + Suno V4 (mit callback)
-// - kind standardized auf 'song' (statt split 'song_lyrics' / 'song')
-// - suno_debug nur noch bei Fehler exposed
-// - fail-fast bei fehlenden Secrets
-
+// kreis-compose-song v8
+// V3 Changes:
+// - Reads story_text from each response automatically (no extra param needed)
+// - When event.guest_of_honor set → lyrics ADDRESS the honoree (second person,
+//   or celebratory "wir warten auf dich")
+// - Guests who skipped story: still named + their RSVP-note used
+// - Style still guessed from title/note
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
 const corsHeaders = {
@@ -28,30 +30,50 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Parallel: Event + Responses (spart ~300-500ms)
     const [eventRes, responsesRes] = await Promise.all([
       sb.from("kreis_events").select("*").eq("id", event_id).single(),
       sb.from("kreis_responses").select("*").eq("event_id", event_id).order("created_at", { ascending: true }),
     ]);
     const event = eventRes.data;
-    const evErr = eventRes.error;
     const responses = responsesRes.data;
-    if (evErr || !event) return json({ error: "Event not found" }, 404);
+    if (eventRes.error || !event) return json({ error: "Event not found" }, 404);
 
-    const guests: { name: string; response: string; note: string | null }[] = [];
+    interface Guest { name: string; response: string; note: string | null; story: string | null; }
+    const guests: Guest[] = [];
+
     if (guest_names?.length) {
       for (const name of guest_names) {
         const r = responses?.find((r: any) => r.user_name.toLowerCase() === name.toLowerCase());
-        guests.push({ name, response: r?.response || "unknown", note: r?.note || null });
+        guests.push({
+          name,
+          response: r?.response || "unknown",
+          note: r?.note || null,
+          story: r?.story_text || null,
+        });
       }
     } else if (responses?.length) {
-      for (const r of responses as any[]) {
-        guests.push({ name: r.user_name, response: r.response, note: r.note });
+      const completed = (responses as any[]).filter((r) => r.wizard_completed);
+      const pool = completed.length > 0 ? completed : responses;
+      for (const r of pool as any[]) {
+        guests.push({
+          name: r.user_name,
+          response: r.response,
+          note: r.note,
+          story: r.story_text || null,
+        });
       }
     }
 
+    const hasHonoree = !!event.guest_of_honor;
+    const honoree = event.guest_of_honor as string | null;
+
     const guestBlock = guests
-      .map((g) => `- ${g.name} (${g.response}${g.note ? `, "${g.note}"` : ""})`)
+      .map((g) => {
+        const parts = [g.response];
+        if (g.note) parts.push(`note: "${g.note}"`);
+        if (g.story) parts.push(`story: "${g.story.slice(0, 400)}"`);
+        return `- ${g.name} (${parts.join(", ")})`;
+      })
       .join("\n");
 
     const dateStr = event.date_start
@@ -63,7 +85,19 @@ Deno.serve(async (req) => {
     const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!anthropicKey) return json({ error: "ANTHROPIC_API_KEY not set" }, 500);
 
-    const prompt = `Du bist ein Songwriter für personalisierte Einladungs-Songs. Der Song motiviert Freunde, gemeinsam zu einem Event zu gehen.
+    const modeBlock = hasHonoree
+      ? `MODUS: EHRENGAST-EINLADUNG
+Der Song ist an ${honoree} adressiert — eine musikalische Einladung.
+Er/Sie hört den Song und soll sich eingeladen, gesehen, wichtig fühlen.
+Die Gäste (${guests.map((g) => g.name).join(", ")}) sind die Produzenten — sie singen FÜR ${honoree}.
+Nutze Second-Person ("du"), ${honoree} explizit mindestens 2x nennen.
+Die Stories der Gäste sind Erinnerungen/Liebeserklärungen an ${honoree} — webe sie als Insider-Momente ein.
+Hook-Beispiel: "Wir warten auf dich, ${honoree}" / "Ohne dich ist kein Fest".`
+      : `MODUS: GRUPPEN-EINLADUNG
+Song motiviert die Gruppe gemeinsam zum Event zu gehen.
+Jeden Gast mindestens 1x namentlich erwähnen, mit Bezug zu Note/Story.`;
+
+    const prompt = `Du bist Songwriter für personalisierte Einladungs-Songs.
 
 EVENT:
 - Titel: ${event.title}
@@ -71,20 +105,22 @@ EVENT:
 - Datum: ${dateStr}
 - Notiz: ${event.note || "keine"}
 - Von: ${event.created_by}
+${hasHonoree ? `- EHRENGAST: ${honoree} (hört diesen Song als Einladung)` : ""}
 
-GÄSTE:
+GÄSTE (mit RSVP, Notes, Stories):
 ${guestBlock || "- Noch keine"}
 
 STYLE: ${finalStyle}
 
+${modeBlock}
+
 REGELN:
 1. Deutsch (außer Style verlangt Englisch)
-2. Jeden Gast mindestens 1x namentlich erwähnen, mit Bezug zu Note/Anmerkung
-3. Eingängiger Refrain passend zum Event
-4. Humor und Insider-Vibes erwünscht
-5. Suno-Format: [Intro], [Verse 1], [Chorus], [Verse 2], [Chorus], [Outro]
-6. Max ~150 Wörter (ca. 60 Sekunden gesungen)
-7. Gib einen "Style of Music"-Tag für Suno (1 Zeile)
+2. Eingängiger Refrain passend zum Event
+3. Humor und Insider-Vibes erwünscht — Stories einweben, nicht zitieren
+4. Suno-Format: [Intro], [Verse 1], [Chorus], [Verse 2], [Chorus], [Outro]
+5. Max ~150 Wörter (ca. 60 Sekunden gesungen)
+6. "Style of Music"-Tag für Suno (1 Zeile)
 
 Antworte NUR mit diesem JSON ohne Markdown-Fences:
 {"lyrics":"...kompletter Text mit [Tags]...","style_of_music":"...","title":"...kurzer Titel..."}`;
@@ -98,7 +134,7 @@ Antworte NUR mit diesem JSON ohne Markdown-Fences:
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1200,
+        max_tokens: 1400,
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -152,10 +188,12 @@ Antworte NUR mit diesem JSON ohne Markdown-Fences:
         suno_task_id: null,
         suno_status: "pending",
         guest_names: guests.map((g) => g.name),
+        mode: hasHonoree ? "ehrengast" : "group",
+        guest_of_honor: honoree,
+        stories_used: guests.filter((g) => g.story).length,
       },
     }).select().single();
 
-    // Suno API (optional)
     const sunoKey = Deno.env.get("SUNO_API_KEY");
     let sunoTaskId: string | null = null;
     let sunoStatus = "no_api_key";
@@ -191,7 +229,6 @@ Antworte NUR mit diesem JSON ohne Markdown-Fences:
       }
     }
 
-    // Update row with Suno result
     if (gen?.id) {
       await sb.from("kreis_generated").update({
         meta: {
@@ -201,6 +238,9 @@ Antworte NUR mit diesem JSON ohne Markdown-Fences:
           suno_task_id: sunoTaskId,
           suno_status: sunoStatus,
           guest_names: guests.map((g) => g.name),
+          mode: hasHonoree ? "ehrengast" : "group",
+          guest_of_honor: honoree,
+          stories_used: guests.filter((g) => g.story).length,
         },
       }).eq("id", gen.id);
     }
@@ -209,6 +249,9 @@ Antworte NUR mit diesem JSON ohne Markdown-Fences:
       lyrics,
       style_of_music: styleOfMusic,
       song_title: songTitle,
+      mode: hasHonoree ? "ehrengast" : "group",
+      guest_of_honor: honoree,
+      stories_used: guests.filter((g) => g.story).length,
       suno_task_id: sunoTaskId,
       suno_status: sunoStatus,
       generated_id: gen?.id,
@@ -241,7 +284,8 @@ function guessStyle(title: string, note: string | null): string {
     [/schwimm|see|strand|beach/, "Reggae, chill, summer, 95 BPM"],
     [/kino|film/, "Cinematic, orchestral, 110 BPM"],
     [/grill|bbq|feuer/, "Country, acoustic, laid-back, 105 BPM"],
-    [/party|feier|geburtstag/, "Pop, dance, German party, 128 BPM"],
+    [/party|feier/, "Pop, dance, German party, 128 BPM"],
+    [/geburtstag|birthday|überrasch/, "Uplifting Pop, warm, celebratory, German, 118 BPM"],
     [/ski|snow|winter/, "Après-Ski, Schlager-Pop, party, 135 BPM"],
   ];
   for (const [re, style] of map) if (re.test(t)) return style;
