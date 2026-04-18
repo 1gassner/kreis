@@ -478,6 +478,9 @@
   let refreshTimer = null;
   function scheduleRefresh(event) {
     if (refreshTimer) clearInterval(refreshTimer);
+    // KEIN Auto-Refresh wenn Owner (Face-Section-Flicker-Fix).
+    // Gaeste sehen Auto-Refresh fuer Live-Voting-Status.
+    if (isMyEvent(event.id)) return;
     refreshTimer = setInterval(() => loadAndRenderEventView(event, true), 8000);
   }
 
@@ -633,27 +636,22 @@
           <span>AI-Einladung</span>
           <span class="bg-primary-container/20 text-primary-container text-[9px] px-2 py-0.5 rounded-full tracking-wider">BETA</span>
         </h2>
-        <p class="text-sm text-on-surface-variant mb-4">Lad ein Selfie hoch, KREIS setzt dein Gesicht in eine Szene.</p>
+        <p class="text-sm text-on-surface-variant mb-4">Claude schreibt Text, Gemini Pro generiert 4 Szenen mit dir &amp; den Gästen.</p>
 
-        <label class="block cursor-pointer">
-          <input type="file" id="face-input" accept="image/jpeg,image/png,image/webp" class="hidden">
-          <div id="face-drop-zone" class="border-2 border-dashed border-outline-variant/30 hover:border-primary-container/50 rounded-2xl p-6 text-center transition-colors">
-            <div id="face-drop-content">
-              <span class="material-symbols-outlined text-[40px] text-on-surface-variant">add_a_photo</span>
-              <p class="text-sm mt-2">Foto auswählen (klicken)</p>
-              <p class="text-xs text-on-surface-variant mt-1">Frontales Portrait, klares Gesicht, max 5 MB</p>
-            </div>
-          </div>
-        </label>
-        <div id="face-preview" class="hidden mt-3"></div>
+        <div id="guests-list" class="flex flex-col gap-3"></div>
 
-        <button id="generate-invite-btn" class="w-full mt-4 bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-medium rounded-2xl py-3.5 px-5 transition-shadow hover:shadow-[0_12px_32px_rgba(167,139,250,0.25)] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
-          <span class="sparkle-pulse">✨</span>
-          <span id="generate-invite-btn-text">Erst Foto hochladen</span>
+        <button id="add-guest-btn" class="w-full mt-3 bg-surface-high hover:bg-surface-bright text-sm font-medium rounded-2xl py-2.5 px-4 transition-colors border border-outline-variant/20 flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-[18px]">person_add</span>
+          <span>Weiteren Gast hinzufügen</span>
         </button>
 
-        <div id="invite-feedback" class="mt-3"></div>
-        <div id="invite-result" class="mt-4"></div>
+        <button id="compose-btn" class="w-full mt-4 bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-medium rounded-2xl py-3.5 px-5 transition-shadow hover:shadow-[0_12px_32px_rgba(167,139,250,0.25)] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
+          <span class="sparkle-pulse">✨</span>
+          <span id="compose-btn-text">Erst mind. 1 Foto hochladen</span>
+        </button>
+
+        <div id="compose-feedback" class="mt-3"></div>
+        <div id="compose-result" class="mt-4"></div>
       </section>
       ` : ''}
     `;
@@ -664,10 +662,8 @@
     document.getElementById('share-btn')?.addEventListener('click', () => nativeShare(event, url));
     document.getElementById('edit-btn')?.addEventListener('click', () => enterEditMode(event));
     document.getElementById('delete-btn')?.addEventListener('click', () => confirmDelete(event));
-    document.getElementById('face-input')?.addEventListener('change', (e) => handleFaceUpload(e, event));
-    document.getElementById('generate-invite-btn')?.addEventListener('click', () => generateInvite(event));
-    // Show existing face if already uploaded for this event
-    if (owned) loadExistingFace(event);
+
+    if (owned) initComposer(event);
 
     if (!silent) scheduleRefresh(event);
   }
@@ -779,162 +775,201 @@
   }
 
   // ============================
-  // AI-EINLADUNG (Face-Swap)
+  // AI-EINLADUNG (Compose: Claude + 4× Gemini Pro parallel)
   // ============================
-  const FACE_SWAP_URL = `${SUPABASE_URL}/functions/v1/kreis-face-swap`;
-  // MVP: hardcoded Demo-Target (Unsplash, Gruppenfoto-Vibe). Später dynamisch via Gemini.
-  const DEMO_TARGET_SCENE = 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=768&q=80';
+  const COMPOSE_URL = `${SUPABASE_URL}/functions/v1/kreis-compose-invite`;
 
-  let uploadedFaceMeta = null; // { path, publicUrl, signedUrl }
+  // Guest-State pro Event: [{name, height_cm, storage_path, signed_url, preview_url}]
+  let composeGuests = [];
 
-  async function loadExistingFace(event) {
-    const me = getName() || event.created_by;
-    if (!me) return;
-    const { data: faces } = await sb.from('kreis_faces')
-      .select('*')
-      .eq('event_id', event.id)
-      .eq('user_name', me)
-      .limit(1);
-    if (faces && faces[0]) {
-      const f = faces[0];
-      const { data: signed } = await sb.storage.from('kreis-faces').createSignedUrl(f.storage_path, 300);
-      if (signed?.signedUrl) {
-        uploadedFaceMeta = { path: f.storage_path, signedUrl: signed.signedUrl };
-        showFacePreview(signed.signedUrl, 'Bereits hochgeladen');
+  function getGuestsKey(eventId) { return `kreis_compose_${eventId}`; }
+  function loadGuests(eventId) {
+    try { return JSON.parse(localStorage.getItem(getGuestsKey(eventId)) || '[]'); } catch { return []; }
+  }
+  function saveGuests(eventId, guests) {
+    localStorage.setItem(getGuestsKey(eventId), JSON.stringify(
+      guests.map(g => ({ name: g.name, height_cm: g.height_cm, storage_path: g.storage_path }))
+    ));
+  }
+
+  async function initComposer(event) {
+    const stored = loadGuests(event.id);
+    // Ersten Gast = Event-Creator (Jürgen selbst) automatisch anlegen wenn leer
+    if (stored.length === 0) {
+      composeGuests = [{ name: getName() || event.created_by, height_cm: null, storage_path: null, signed_url: null, preview_url: null }];
+    } else {
+      composeGuests = stored.map(g => ({ ...g, signed_url: null, preview_url: null }));
+      // Signed URLs für bestehende storage_paths refreshen
+      for (const g of composeGuests) {
+        if (g.storage_path) {
+          const { data } = await sb.storage.from('kreis-faces').createSignedUrl(g.storage_path, 3600);
+          if (data?.signedUrl) {
+            g.signed_url = data.signedUrl;
+            g.preview_url = data.signedUrl;
+          }
+        }
       }
     }
+    renderGuests(event);
 
-    // Show existing generated swaps for this event
+    // Check ob schon komponierte Einladungen existieren
     const { data: gens } = await sb.from('kreis_generated')
       .select('*')
       .eq('event_id', event.id)
-      .eq('kind', 'face_swap')
+      .eq('kind', 'scene_image')
       .order('created_at', { ascending: false })
       .limit(4);
-    if (gens && gens.length) {
-      const box = document.getElementById('invite-result');
-      if (box) box.innerHTML = renderSwapResults(gens);
+    if (gens && gens.length === 4) {
+      // Zeige letzte 4 Szenen — gleich Run gruppiert by compose_run oder letzte 4
+      renderComposeResult({
+        description: '',
+        song_hook: '',
+        scenes: gens.reverse().map((g, i) => ({
+          title: g.meta?.scene_title || `Szene ${i + 1}`,
+          image_url: g.url,
+        })),
+      });
+    }
+
+    document.getElementById('add-guest-btn')?.addEventListener('click', () => {
+      if (composeGuests.length >= 4) return;
+      composeGuests.push({ name: '', height_cm: null, storage_path: null, signed_url: null, preview_url: null });
+      renderGuests(event);
+    });
+
+    document.getElementById('compose-btn')?.addEventListener('click', () => composeInvite(event));
+  }
+
+  function renderGuests(event) {
+    const list = document.getElementById('guests-list');
+    if (!list) return;
+    list.innerHTML = composeGuests.map((g, idx) => `
+      <div class="bg-surface-high rounded-2xl p-3 flex items-start gap-3">
+        <label class="cursor-pointer shrink-0">
+          <input type="file" class="hidden" accept="image/jpeg,image/png,image/webp,image/heic" data-guest-idx="${idx}">
+          ${g.preview_url ? `
+            <img src="${esc(g.preview_url)}" alt="${esc(g.name)}" class="w-16 h-16 rounded-xl object-cover ring-2 ring-primary-container/30">
+          ` : `
+            <div class="w-16 h-16 rounded-xl bg-surface-highest border-2 border-dashed border-outline-variant/40 flex items-center justify-center hover:border-primary-container/50 transition-colors">
+              <span class="material-symbols-outlined text-[20px] text-on-surface-variant">add_a_photo</span>
+            </div>
+          `}
+        </label>
+        <div class="flex-1 min-w-0 flex flex-col gap-2">
+          <input type="text" placeholder="Name" value="${esc(g.name)}" data-guest-name-idx="${idx}" class="w-full bg-surface-highest rounded-xl border border-outline-variant/20 px-3 py-2 text-sm focus:border-primary-container/50 focus:ring-0">
+          <div class="flex items-center gap-2">
+            <input type="number" placeholder="cm" min="100" max="230" value="${g.height_cm || ''}" data-guest-height-idx="${idx}" class="w-20 bg-surface-highest rounded-xl border border-outline-variant/20 px-3 py-2 text-sm focus:border-primary-container/50 focus:ring-0">
+            <span class="text-xs text-on-surface-variant">Größe (optional, verbessert Proportionen)</span>
+            ${idx > 0 ? `<button data-guest-remove-idx="${idx}" class="ml-auto text-xs text-on-surface-variant hover:text-error">✕</button>` : ''}
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    // File-Upload-Listeners
+    list.querySelectorAll('input[type="file"][data-guest-idx]').forEach(input => {
+      input.addEventListener('change', (e) => handleGuestFaceUpload(e, parseInt(input.dataset.guestIdx), event));
+    });
+    list.querySelectorAll('input[data-guest-name-idx]').forEach(input => {
+      input.addEventListener('input', () => {
+        composeGuests[parseInt(input.dataset.guestNameIdx)].name = input.value.trim();
+        updateComposeBtn();
+      });
+    });
+    list.querySelectorAll('input[data-guest-height-idx]').forEach(input => {
+      input.addEventListener('input', () => {
+        const v = parseInt(input.value);
+        composeGuests[parseInt(input.dataset.guestHeightIdx)].height_cm = Number.isFinite(v) ? v : null;
+        saveGuests(event.id, composeGuests);
+      });
+    });
+    list.querySelectorAll('button[data-guest-remove-idx]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        composeGuests.splice(parseInt(btn.dataset.guestRemoveIdx), 1);
+        saveGuests(event.id, composeGuests);
+        renderGuests(event);
+        updateComposeBtn();
+      });
+    });
+
+    // Add-Guest-Button (max 4)
+    const addBtn = document.getElementById('add-guest-btn');
+    if (addBtn) addBtn.style.display = composeGuests.length >= 4 ? 'none' : '';
+
+    updateComposeBtn();
+  }
+
+  function updateComposeBtn() {
+    const btn = document.getElementById('compose-btn');
+    const btnText = document.getElementById('compose-btn-text');
+    if (!btn || !btnText) return;
+    const withFaces = composeGuests.filter(g => g.signed_url && g.name).length;
+    if (withFaces === 0) {
+      btn.disabled = true;
+      btnText.textContent = 'Erst mind. 1 Gesicht + Name';
+    } else {
+      btn.disabled = false;
+      btnText.textContent = `✨ Volle Einladung komponieren (${withFaces} ${withFaces === 1 ? 'Person' : 'Personen'})`;
     }
   }
 
-  function showFacePreview(url, label) {
-    const pv = document.getElementById('face-preview');
-    const dropZone = document.getElementById('face-drop-zone');
-    const btn = document.getElementById('generate-invite-btn');
-    const btnText = document.getElementById('generate-invite-btn-text');
-    if (!pv) return;
-    pv.classList.remove('hidden');
-    pv.innerHTML = `
-      <div class="flex items-center gap-3 bg-surface-high rounded-2xl p-3">
-        <img src="${esc(url)}" alt="Dein Face" class="w-16 h-16 rounded-xl object-cover">
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium truncate">${esc(label)}</p>
-          <button id="face-change-btn" class="text-xs text-on-surface-variant hover:text-primary-container underline mt-1">ändern</button>
-        </div>
-        <span class="material-symbols-outlined text-yes">check_circle</span>
-      </div>
-    `;
-    if (dropZone) dropZone.classList.add('hidden');
-    if (btn) btn.disabled = false;
-    if (btnText) btnText.textContent = 'Einladungs-Bild generieren';
-    document.getElementById('face-change-btn')?.addEventListener('click', () => {
-      document.getElementById('face-input')?.click();
-    });
-  }
-
-  async function handleFaceUpload(e, event) {
+  async function handleGuestFaceUpload(e, idx, event) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const fb = document.getElementById('invite-feedback');
-    const btn = document.getElementById('generate-invite-btn');
-    const btnText = document.getElementById('generate-invite-btn-text');
-
-    if (file.size > 5 * 1024 * 1024) {
-      fb.innerHTML = '<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Foto ist größer als 5 MB. Kleineres nehmen.</div>';
+    const fb = document.getElementById('compose-feedback');
+    if (file.size > 8 * 1024 * 1024) {
+      fb.innerHTML = '<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Foto ist größer als 8 MB.</div>';
       return;
     }
+
+    const guest = composeGuests[idx];
+    const name = guest.name || `gast${idx}`;
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z]/g, '').slice(0, 4) || 'jpg';
+    const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, '-') || 'gast';
+    const path = `${event.id}/${safeName}-${Date.now()}.${ext}`;
 
     fb.innerHTML = '<div class="text-on-surface-variant text-sm px-1">lade hoch…</div>';
-    btn.disabled = true;
 
-    const me = getName() || event.created_by || 'anon';
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z]/g, '').slice(0, 4) || 'jpg';
-    const path = `${event.id}/${me.toLowerCase().replace(/[^a-z0-9]/g, '-')}-${Date.now()}.${ext}`;
-
-    const { error: uploadErr } = await sb.storage.from('kreis-faces').upload(path, file, {
-      cacheControl: '3600',
-      upsert: true,
-      contentType: file.type,
+    const { error: upErr } = await sb.storage.from('kreis-faces').upload(path, file, {
+      contentType: file.type, upsert: true,
     });
-    if (uploadErr) {
-      fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Upload fehlgeschlagen: ${esc(uploadErr.message)}</div>`;
-      btn.disabled = true;
-      btnText.textContent = 'Erst Foto hochladen';
+    if (upErr) {
+      fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Upload: ${esc(upErr.message)}</div>`;
       return;
     }
 
-    // Signed URL (Replicate kann dann holen, private bucket bleibt privat)
-    const { data: signed, error: signErr } = await sb.storage.from('kreis-faces').createSignedUrl(path, 600);
-    if (signErr || !signed?.signedUrl) {
-      fb.innerHTML = '<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Signed-URL konnte nicht erstellt werden.</div>';
+    const { data: signed } = await sb.storage.from('kreis-faces').createSignedUrl(path, 3600);
+    if (!signed?.signedUrl) {
+      fb.innerHTML = '<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Signed-URL-Fehler.</div>';
       return;
     }
 
-    // Insert face row (or update if exists)
-    await sb.from('kreis_faces').upsert({
-      event_id: event.id,
-      user_name: me,
-      storage_path: path,
-      consent_given: true,
-    }, { onConflict: 'event_id,user_name' });
+    guest.storage_path = path;
+    guest.signed_url = signed.signedUrl;
+    guest.preview_url = signed.signedUrl;
 
-    uploadedFaceMeta = { path, signedUrl: signed.signedUrl };
-    fb.innerHTML = '<div class="bg-yes/10 border border-yes/30 text-yes rounded-2xl px-4 py-3 text-sm">Foto hochgeladen.</div>';
-    showFacePreview(signed.signedUrl, file.name);
-    setTimeout(() => { fb.innerHTML = ''; }, 2000);
+    saveGuests(event.id, composeGuests);
+    renderGuests(event);
+
+    fb.innerHTML = '<div class="bg-yes/10 border border-yes/30 text-yes rounded-2xl px-4 py-3 text-sm">Foto ok.</div>';
+    setTimeout(() => { fb.innerHTML = ''; }, 1500);
   }
 
-  function renderSwapResults(rows) {
-    return `
-      <div class="grid grid-cols-1 gap-3">
-        ${rows.map(r => `
-          <div class="bg-surface-high rounded-2xl overflow-hidden">
-            <img src="${esc(r.url)}" alt="AI-Einladung" class="w-full aspect-[3/4] object-cover">
-            <div class="flex gap-2 p-3">
-              <a href="${esc(r.url)}" target="_blank" rel="noopener" download class="flex-1 bg-surface-highest hover:bg-surface-bright text-xs font-medium rounded-xl py-2 px-3 transition-colors text-center">öffnen / speichern</a>
-              <button onclick="shareSwapImage('${esc(r.url)}')" class="flex-1 bg-gradient-to-br from-primary to-primary-container text-on-primary-container text-xs font-medium rounded-xl py-2 px-3 transition-shadow hover:shadow-[0_4px_12px_rgba(167,139,250,0.3)]">teilen</button>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-    `;
-  }
+  async function composeInvite(event) {
+    const valid = composeGuests.filter(g => g.signed_url && g.name);
+    if (valid.length === 0) return;
 
-  window.shareSwapImage = async (url) => {
-    if ('share' in navigator) {
-      try {
-        await navigator.share({ url, title: 'KREIS Einladung' });
-      } catch (e) {
-        if (e.name !== 'AbortError') navigator.clipboard?.writeText(url);
-      }
-    } else {
-      await navigator.clipboard?.writeText(url);
-    }
-  };
-
-  async function generateInvite(event) {
-    if (!uploadedFaceMeta?.signedUrl) return;
-    const fb = document.getElementById('invite-feedback');
-    const btn = document.getElementById('generate-invite-btn');
-    const btnText = document.getElementById('generate-invite-btn-text');
-    const result = document.getElementById('invite-result');
+    const fb = document.getElementById('compose-feedback');
+    const btn = document.getElementById('compose-btn');
+    const btnText = document.getElementById('compose-btn-text');
+    const result = document.getElementById('compose-result');
 
     btn.disabled = true;
-    btnText.innerHTML = 'generiere… (~15 Sek)';
-    fb.innerHTML = '<div class="text-on-surface-variant text-sm px-1">Face-Swap läuft — Replicate + Supabase…</div>';
+    btnText.innerHTML = 'Claude denkt… Gemini Pro generiert 4 Szenen… (~30-60 Sek)';
+    fb.innerHTML = '<div class="bg-surface-highest rounded-2xl px-4 py-3 text-sm flex items-center gap-2"><span class="sparkle-pulse">✨</span><span>Das kann bis zu einer Minute dauern. Bleib da.</span></div>';
 
     try {
-      const resp = await fetch(FACE_SWAP_URL, {
+      const resp = await fetch(COMPOSE_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -943,40 +978,80 @@
         },
         body: JSON.stringify({
           event_id: event.id,
-          source_face_url: uploadedFaceMeta.signedUrl,
-          target_image_url: DEMO_TARGET_SCENE,
-          user_name: getName() || event.created_by,
+          face_urls: valid.map(g => g.signed_url),
+          user_names: valid.map(g => g.name),
+          user_heights_cm: valid.map(g => g.height_cm).every(h => h) ? valid.map(g => g.height_cm) : undefined,
         }),
       });
 
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-        fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Fehler: ${esc(err.detail || err.error || 'unbekannt')}</div>`;
+        fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">${esc(err.detail || err.error || 'unbekannt')}</div>`;
         btn.disabled = false;
-        btnText.textContent = 'Nochmal versuchen';
+        btnText.textContent = '✨ Nochmal versuchen';
         return;
       }
 
-      const { swapped_url } = await resp.json();
-      fb.innerHTML = '<div class="bg-yes/10 border border-yes/30 text-yes rounded-2xl px-4 py-3 text-sm">Fertig. Siehe unten.</div>';
-
-      // Reload all swaps for this event
-      const { data: gens } = await sb.from('kreis_generated')
-        .select('*')
-        .eq('event_id', event.id)
-        .eq('kind', 'face_swap')
-        .order('created_at', { ascending: false })
-        .limit(4);
-      result.innerHTML = renderSwapResults(gens || [{ url: swapped_url }]);
-
+      const plan = await resp.json();
+      fb.innerHTML = '';
+      renderComposeResult(plan);
       btn.disabled = false;
-      btnText.textContent = 'Nochmal generieren';
-      setTimeout(() => { fb.innerHTML = ''; }, 3000);
+      btnText.textContent = '✨ Neu komponieren';
     } catch (err) {
-      fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Netzwerk-Fehler: ${esc(err.message || err)}</div>`;
+      fb.innerHTML = `<div class="bg-error/10 border border-error/30 text-error rounded-2xl px-4 py-3 text-sm">Netz-Fehler: ${esc(err.message || err)}</div>`;
       btn.disabled = false;
-      btnText.textContent = 'Nochmal versuchen';
+      btnText.textContent = '✨ Nochmal versuchen';
     }
+  }
+
+  function renderComposeResult(plan) {
+    const result = document.getElementById('compose-result');
+    if (!result) return;
+    const scenes = plan.scenes || [];
+
+    result.innerHTML = `
+      ${plan.description ? `
+        <div class="bg-surface-high rounded-2xl p-4 mb-4">
+          <h3 class="text-on-surface-variant text-xs font-semibold tracking-widest uppercase mb-2">Einladungstext</h3>
+          <p class="text-sm leading-relaxed">${esc(plan.description)}</p>
+          ${plan.song_hook ? `<p class="text-xs text-primary-container italic mt-2 pt-2 border-t border-outline-variant/15">🎵 Song-Hook: „${esc(plan.song_hook)}"</p>` : ''}
+        </div>
+      ` : ''}
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        ${scenes.map((s, i) => !s.image_url ? `
+          <div class="bg-surface-high rounded-2xl p-4 border border-error/30 text-error text-xs">
+            <p class="font-semibold">${esc(s.title)}</p>
+            <p class="mt-1">Fehler: ${esc((s.error || 'unbekannt').slice(0, 100))}</p>
+          </div>
+        ` : `
+          <div class="bg-surface-high rounded-2xl overflow-hidden">
+            <div class="relative">
+              <img src="${esc(s.image_url)}" alt="${esc(s.title)}" class="w-full aspect-[3/4] object-cover">
+              <span class="absolute bottom-2 left-2 bg-black/60 backdrop-blur text-white text-[11px] font-medium px-2 py-1 rounded-full">${esc(s.title)}</span>
+            </div>
+            <div class="flex gap-2 p-2">
+              <a href="${esc(s.image_url)}" target="_blank" rel="noopener" class="flex-1 bg-surface-highest hover:bg-surface-bright text-[11px] font-medium rounded-xl py-2 transition-colors text-center">öffnen</a>
+              <button data-share-url="${esc(s.image_url)}" class="share-scene-btn flex-1 bg-primary-container/20 hover:bg-primary-container/30 text-primary-container text-[11px] font-medium rounded-xl py-2 transition-colors">teilen</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    // Share-Buttons-Listeners
+    result.querySelectorAll('.share-scene-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const url = btn.dataset.shareUrl;
+        if ('share' in navigator) {
+          try { await navigator.share({ url, title: 'KREIS Einladung' }); }
+          catch (e) { if (e.name !== 'AbortError') navigator.clipboard?.writeText(url); }
+        } else {
+          navigator.clipboard?.writeText(url);
+          btn.textContent = 'Link kopiert ✓';
+          setTimeout(() => { btn.textContent = 'teilen'; }, 1500);
+        }
+      });
+    });
   }
 
   function confirmDelete(event) {
