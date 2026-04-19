@@ -498,11 +498,11 @@
             </div>
           </div>
 
-          <!-- FOLDOUT 1: Details (Ort, Endedatum, Link, Notiz) -->
-          <details class="group relative z-10">
+          <!-- FOLDOUT 1: Details (Ort, Endedatum, Link, Notiz) — auto-open wenn Werte da -->
+          <details class="group relative z-10" ${(p.location || p.date_end || p.link || p.note) ? 'open' : ''}>
             <summary class="cursor-pointer glass-pill inline-flex items-center gap-2 px-4 py-2 font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface-variant/70 hover:text-primary uppercase transition-colors list-none self-start">
               <span class="material-symbols-outlined text-[14px] group-open:rotate-90 transition-transform">chevron_right</span>
-              <span>ORT · ENDE-DATUM · LINK · NOTIZ</span>
+              <span>ORT · ENDE-DATUM · LINK · NOTIZ${(p.location || p.date_end || p.link || p.note) ? ` <span class="text-primary/70">· ${[p.location && 'ORT', p.date_end && 'ENDE', p.link && 'LINK', p.note && 'NOTIZ'].filter(Boolean).join(' + ')}</span>` : ''}</span>
             </summary>
             <div class="flex flex-col gap-6 mt-5 pl-1">
               <div class="flex flex-col gap-2 group">
@@ -681,9 +681,13 @@
   function scheduleRefresh(event) {
     if (refreshTimer) clearInterval(refreshTimer);
     // KEIN Auto-Refresh wenn Owner (Face-Section-Flicker-Fix).
-    // Gaeste sehen Auto-Refresh fuer Live-Voting-Status.
+    // Gaeste sehen Auto-Refresh fuer Live-Voting-Status + Event-Edits.
     if (isMyEvent(event.id)) return;
-    refreshTimer = setInterval(() => loadAndRenderEventView(event, true), 8000);
+    refreshTimer = setInterval(async () => {
+      // Fresh event holen (Title/Datum/Ort könnte vom Owner geändert worden sein)
+      const { data: fresh } = await sb.from('kreis_events').select('*').eq('id', event.id).single();
+      if (fresh) await loadAndRenderEventView(fresh, true);
+    }, 8000);
   }
 
   // Shared view fragments (used by owner-accordion + guest-view)
@@ -1167,7 +1171,7 @@
 
   async function triggerRender(event, hasGuests) {
     const force = !!event.auto_render_triggered_at; // Already triggered once → force=true
-    setFeedback('v3-action-feedback', '<p class="font-tech text-[10px] text-primary uppercase animate-pulse">TRIGGERING_AUTO_RENDER...</p>');
+    setFeedback('v3-action-feedback', '<p class="font-mono-stitch text-[10px] text-primary uppercase tracking-[0.15em] animate-pulse">TRIGGERING_AUTO_RENDER...</p>');
     try {
       const resp = await fetch(AUTO_RENDER_URL, {
         method: 'POST',
@@ -1180,14 +1184,17 @@
       });
       const data = await resp.json();
       if (data.triggered) {
-        setFeedback('v3-action-feedback', `<p class="font-tech text-[10px] text-primary uppercase">RENDER_STARTED · ${data.faces_used} FACES · ${data.stories_provided} STORIES · ${data.render_count}/${data.max} RUNS</p>`, 8000);
-        // Reload after 3s to reflect triggered_at
-        setTimeout(() => loadAndRenderEventView(event), 3000);
+        setFeedback('v3-action-feedback', `<p class="font-mono-stitch text-[10px] text-primary uppercase tracking-[0.15em]">RENDER_STARTED · ${data.faces_used} FACES · ${data.stories_provided} STORIES · ${data.render_count}/${data.max} RUNS</p>`, 8000);
+        // Reload after 3s mit FRESHEM event (sonst bleibt UI auf render_count=0)
+        setTimeout(async () => {
+          const { data: fresh } = await sb.from('kreis_events').select('*').eq('id', event.id).single();
+          if (fresh) await loadAndRenderEventView(fresh);
+        }, 3000);
       } else {
-        setFeedback('v3-action-feedback', `<p class="font-tech text-[10px] text-error uppercase">${esc(data.reason || 'FAIL')} · ${esc(JSON.stringify(data).slice(0, 200))}</p>`, 8000);
+        setFeedback('v3-action-feedback', `<p class="font-mono-stitch text-[10px] text-error uppercase tracking-[0.15em]">${esc(data.reason || 'FAIL')} · ${esc(JSON.stringify(data).slice(0, 200))}</p>`, 8000);
       }
     } catch (err) {
-      setFeedback('v3-action-feedback', `<p class="font-tech text-[10px] text-error uppercase">NETWORK_ERROR · ${esc(err.message || err)}</p>`, 8000);
+      setFeedback('v3-action-feedback', `<p class="font-mono-stitch text-[10px] text-error uppercase tracking-[0.15em]">NETWORK_ERROR · ${esc(err.message || err)}</p>`, 8000);
     }
   }
 
@@ -2497,14 +2504,16 @@
           if (!file) return;
           const fb = document.getElementById('wiz-photo-feedback');
           if (file.size > 5 * 1024 * 1024) { fb.innerHTML = '<span class="text-error text-xs">Zu groß — max 5MB.</span>'; return; }
-          fb.innerHTML = '<span class="font-tech text-[10px] text-primary uppercase">UPLOADING...</span>';
+          fb.innerHTML = '<span class="font-mono-stitch text-[10px] text-primary uppercase tracking-[0.15em]">UPLOADING...</span>';
           const ext = file.name.split('.').pop() || 'jpg';
           const path = `${event.id}/${state.name || 'guest'}-${crypto.randomUUID()}.${ext}`;
           const { error } = await sb.storage.from('kreis-faces').upload(path, file, { contentType: file.type });
           if (error) { fb.innerHTML = `<span class="text-error text-xs">${esc(error.message)}</span>`; return; }
           await sb.from('kreis_faces').insert({ event_id: event.id, user_name: state.name, storage_path: path, consent_given: true });
           state.photo_path = path;
-          state.photo_preview = URL.createObjectURL(file);
+          // Signed URL statt blob:// — überlebt Session-Reload
+          const { data: sig } = await sb.storage.from('kreis-faces').createSignedUrl(path, 3600);
+          state.photo_preview = sig?.signedUrl || URL.createObjectURL(file);
           saveState();
           renderStep();
         });
@@ -2706,21 +2715,38 @@
     renderWizard(event); // Re-render with real status
   }
 
+  // Global state — prevents duplicate polls on wizard re-render (memory leak fix)
+  let _wizardPollInterval = null;
+  let _wizardPollSafetyTimeout = null;
+  let _wizardPollDone = false;
+
+  function stopWizardPoll() {
+    if (_wizardPollInterval) { clearInterval(_wizardPollInterval); _wizardPollInterval = null; }
+    if (_wizardPollSafetyTimeout) { clearTimeout(_wizardPollSafetyTimeout); _wizardPollSafetyTimeout = null; }
+    _wizardPollDone = true;
+  }
+
   async function pollWizardProgress(eventId, onComplete) {
+    stopWizardPoll();      // Stop any previous poll (re-render safety)
+    _wizardPollDone = false;
+
     const logLyrics = () => document.getElementById('log-lyrics');
     const logScenes = () => document.getElementById('log-scenes');
     const logAudio = () => document.getElementById('log-audio');
 
-    let doneCalled = false;
     const markDone = (el) => {
       if (!el) return;
       el.classList.remove('opacity-60', 'opacity-40');
-      el.querySelector('.material-symbols-outlined').textContent = 'check_circle';
-      el.querySelector('.material-symbols-outlined').style.color = '#cebdff';
-      el.querySelector('.material-symbols-outlined').style.fontVariationSettings = "'FILL' 1";
+      const icon = el.querySelector('.material-symbols-outlined');
+      if (icon) {
+        icon.textContent = 'check_circle';
+        icon.style.color = '#cebdff';
+        icon.style.fontVariationSettings = "'FILL' 1";
+      }
     };
 
     const poll = async () => {
+      if (_wizardPollDone) return;
       const { data: gens } = await sb.from('kreis_generated').select('*').eq('event_id', eventId).order('created_at', { ascending: false }).limit(20);
       const sceneCount = gens?.filter((g) => g.kind === 'scene_image').length || 0;
       const song = gens?.find((g) => g.kind === 'song');
@@ -2730,21 +2756,22 @@
       if (sceneCount >= 2) markDone(logScenes());
       if (songStatus === 'done' || song?.url) markDone(logAudio());
 
-      if (!doneCalled && sceneCount >= 3 && (songStatus === 'done' || song?.url)) {
-        doneCalled = true;
+      if (!_wizardPollDone && sceneCount >= 3 && (songStatus === 'done' || song?.url)) {
+        _wizardPollDone = true;
+        if (_wizardPollInterval) { clearInterval(_wizardPollInterval); _wizardPollInterval = null; }
         setTimeout(onComplete, 1500);
       }
     };
 
     await poll();
-    const interval = setInterval(async () => {
-      if (doneCalled) { clearInterval(interval); return; }
+    _wizardPollInterval = setInterval(async () => {
+      if (_wizardPollDone) { stopWizardPoll(); return; }
       await poll();
     }, 6000);
 
     // Safety timeout after 5 min — always advance
-    setTimeout(() => {
-      if (!doneCalled) { doneCalled = true; clearInterval(interval); onComplete(); }
+    _wizardPollSafetyTimeout = setTimeout(() => {
+      if (!_wizardPollDone) { _wizardPollDone = true; stopWizardPoll(); onComplete(); }
     }, 300000);
   }
 

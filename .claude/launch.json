@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kreis",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": ["-c", "cd /Users/juergen.gassner/Desktop/kreis && exec python3 -m http.server 8094"],
+      "port": 8094
+    }
+  ]
+}
