@@ -274,12 +274,27 @@
   </div>
 </main>
 
-<footer class="mt-auto pt-12 pb-6 text-center relative z-10">
+<footer class="mt-auto pt-12 pb-24 text-center relative z-10">
   <p class="font-tech text-[9px] text-on-surface-variant/40 uppercase tracking-[0.2em]">
     GEBAUT FÜR JÜRGEN &amp; FREUNDE ·
     <a href="https://github.com/1gassner/kreis" class="hover:text-primary transition-colors" target="_blank" rel="noopener">GITHUB</a>
   </p>
 </footer>
+
+<!-- Sticky Share Pill (only on event detail view, populated by JS) -->
+<div id="sticky-share-pill" class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md z-40 pointer-events-none">
+  <div class="glass-panel rounded-full p-2 pl-5 flex items-center justify-between shadow-[0_20px_50px_rgba(0,0,0,0.8)] pointer-events-auto" style="border-color: rgba(73,69,82,0.4);">
+    <span id="sticky-share-label" class="font-mono-stitch text-[11px] text-on-surface-variant tracking-[0.2em] uppercase truncate max-w-[55%]">Link teilen</span>
+    <div class="flex items-center gap-1.5">
+      <button id="sticky-share-copy" class="w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant/70 hover:text-primary hover:bg-surface-container-high/40 transition-colors" title="Link kopieren">
+        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'wght' 300">link</span>
+      </button>
+      <button id="sticky-share-action" class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-primary hover:bg-primary hover:text-on-primary transition-colors duration-300" title="Teilen">
+        <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'wght' 300">ios_share</span>
+      </button>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 <script>
@@ -386,6 +401,7 @@
   // RENDER: CREATE / LANDING
   // ============================
   function renderCreate(prefill = null) {
+    hideStickyShare();
     const p = prefill || {};
     const hasPrefill = !!prefill;
     const mine = getMyEvents();
@@ -450,97 +466,87 @@
         <div id="parse-feedback"></div>
       </section>
 
-      <!-- Preview Card (Stitch Intima exact) -->
-      <section id="preview-section" class="flex flex-col gap-6 relative z-10 ${hasPrefill ? 'fade-in' : 'hidden'}">
-        <div class="flex items-center gap-4 pl-2">
+      <!-- Preview Card — Progressive Disclosure -->
+      <section id="preview-section" class="flex flex-col gap-5 relative z-10 ${hasPrefill ? 'fade-in' : 'hidden'}">
+        ${hasPrefill ? `
+        <div class="flex items-center gap-3 pl-1">
           <div class="w-2 h-2 rounded-full bg-tertiary shadow-[0_0_12px_rgba(219,200,57,0.6)]"></div>
-          <h3 class="font-mono-stitch text-[11px] uppercase tracking-[0.2em] text-on-surface-variant">${hasPrefill ? 'Passt das?' : 'Manuell'}</h3>
+          <span class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-tertiary">NLP_PARSE_OK · 0.98 CONF</span>
         </div>
+        ` : ''}
 
-        <div class="bg-surface-variant/10 backdrop-blur-[100px] rounded-[1.25rem] p-7 sm:p-8 flex flex-col gap-8 relative overflow-hidden" style="border: 0.5px solid rgba(73,69,82,0.3);">
-          <!-- Internal subtle light-bleed -->
+        <div class="bg-surface-variant/10 backdrop-blur-[100px] rounded-[1.25rem] p-7 sm:p-8 flex flex-col gap-7 relative overflow-hidden" style="border: 0.5px solid rgba(73,69,82,0.3);">
           <div class="absolute -bottom-32 -right-32 w-80 h-80 bg-primary/5 blur-[100px] pointer-events-none"></div>
 
-          ${Array.isArray(p.friends) && p.friends.length > 0 ? `
-          <div class="flex flex-wrap items-center gap-2 relative z-10">
-            <span class="font-mono-stitch text-[10px] text-on-surface-variant/60 tracking-[0.2em] uppercase">FRIENDS</span>
-            ${p.friends.map(f => `<div class="glass-pill px-3 py-1.5 flex items-center gap-2"><div class="pulse-dot"></div><span class="font-mono-stitch text-[10px] text-on-surface uppercase tracking-[0.15em]">${esc(f)}</span></div>`).join('')}
-          </div>
-          ` : ''}
-
+          <!-- CORE: Name (einmalig) + Titel + Datum — das Minimum -->
           <div class="flex flex-col gap-6 relative z-10">
-            <!-- Input: Dein Name -->
+            ${!getName() ? `
             <div class="flex flex-col gap-2 group">
-              <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">DEIN NAME *</label>
+              <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">DEIN NAME</label>
               <input id="creator" type="text" placeholder="z.B. Jürgen" value="${esc(getName())}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-on-surface font-display-stitch text-[1.25rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
-              ${!getName() ? '<span class="font-mono-stitch text-[10px] text-primary/70 tracking-[0.15em] uppercase">← DAMIT DEINE FREUNDE WISSEN, VON WEM</span>' : ''}
             </div>
-            <!-- Input: Was -->
+            ` : `<input id="creator" type="hidden" value="${esc(getName())}">`}
+
             <div class="flex flex-col gap-2 group">
-              <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">WAS *</label>
-              <input id="title" type="text" placeholder="Klettern im Kletterwald" value="${esc(p.title || '')}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-on-surface font-display-stitch text-[1.25rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
+              <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">WAS</label>
+              <input id="title" type="text" placeholder="Klettern im Kletterwald" value="${esc(p.title || '')}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-on-surface font-display-stitch text-[1.5rem] md:text-[1.75rem] font-medium py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
             </div>
-            <!-- Grid: Wann + Wo -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div class="flex flex-col gap-2 group">
+              <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">WANN</label>
+              <input id="date_start" type="date" value="${esc(p.date_start || '')}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-primary-fixed-dim font-mono-stitch text-[1rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
+            </div>
+          </div>
+
+          <!-- FOLDOUT 1: Details (Ort, Endedatum, Link, Notiz) -->
+          <details class="group relative z-10">
+            <summary class="cursor-pointer glass-pill inline-flex items-center gap-2 px-4 py-2 font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface-variant/70 hover:text-primary uppercase transition-colors list-none self-start">
+              <span class="material-symbols-outlined text-[14px] group-open:rotate-90 transition-transform">chevron_right</span>
+              <span>ORT · ENDE-DATUM · LINK · NOTIZ</span>
+            </summary>
+            <div class="flex flex-col gap-6 mt-5 pl-1">
               <div class="flex flex-col gap-2 group">
-                <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">WANN</label>
-                <input id="date_start" type="date" value="${esc(p.date_start || '')}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-primary-fixed-dim font-mono-stitch text-[0.875rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
+                <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">WO</label>
+                <input id="location" type="text" placeholder="Reutlingen Hallenbad" value="${esc(p.location || '')}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-on-surface font-body text-[1rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
               </div>
               <div class="flex flex-col gap-2 group">
-                <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">BIS (OPTIONAL)</label>
+                <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">BIS (FALLS MEHRTÄGIG)</label>
                 <input id="date_end" type="date" value="${esc(p.date_end || '')}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-primary-fixed-dim font-mono-stitch text-[0.875rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
               </div>
-            </div>
-            <!-- Input: Wo -->
-            <div class="flex flex-col gap-2 group">
-              <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">WO</label>
-              <input id="location" type="text" placeholder="Reutlingen Hallenbad" value="${esc(p.location || '')}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-on-surface font-body text-[1rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
-            </div>
-            <!-- Input: Link -->
-            <div class="flex flex-col gap-2 group mt-1">
-              <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">LINK (OPTIONAL)</label>
-              <div class="flex items-center border-b-[0.5px] border-outline-variant/50 group-focus-within:border-primary transition-all duration-300">
-                <span class="material-symbols-outlined text-outline text-[18px] mr-2">link</span>
-                <input id="link" type="url" placeholder="maps.app.goo.gl/..." value="${esc(p.link || '')}" class="liquid-input w-full bg-transparent border-0 text-on-surface-variant font-mono-stitch text-[0.875rem] py-2 px-0 focus:ring-0">
+              <div class="flex flex-col gap-2 group">
+                <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">LINK</label>
+                <div class="flex items-center border-b-[0.5px] border-outline-variant/50 group-focus-within:border-primary transition-all duration-300">
+                  <span class="material-symbols-outlined text-outline text-[18px] mr-2">link</span>
+                  <input id="link" type="url" placeholder="maps.app.goo.gl/..." value="${esc(p.link || '')}" class="liquid-input w-full bg-transparent border-0 text-on-surface-variant font-mono-stitch text-[0.875rem] py-2 px-0 focus:ring-0">
+                </div>
+              </div>
+              <div class="flex flex-col gap-2 group">
+                <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">NOTIZ</label>
+                <textarea id="note" placeholder="Irgendwas Wichtiges?" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-on-surface font-body text-[0.95rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300 resize-none min-h-[60px]">${esc(p.note || '')}</textarea>
               </div>
             </div>
-            <!-- Input: Notiz -->
-            <div class="flex flex-col gap-2 group mt-1">
-              <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-outline group-focus-within:text-primary transition-colors duration-300">NOTIZ</label>
-              <textarea id="note" placeholder="Irgendwas Wichtiges?" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-on-surface font-body text-[0.95rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300 resize-none min-h-[60px]">${esc(p.note || '')}</textarea>
-            </div>
+          </details>
 
-            <!-- V3: Ehrengast -->
-            <div class="flex flex-col gap-3 pt-5 mt-2 group" style="border-top: 0.5px solid rgba(73,69,82,0.3);">
-              <div class="flex items-center gap-2.5">
-                <div class="pulse-dot"></div>
-                <label class="font-mono-stitch text-[10px] uppercase tracking-[0.2em] text-primary group-focus-within:text-primary transition-colors duration-300">FÜR WEN? — ÜBERRASCHUNGS-MODUS</label>
-              </div>
+          <!-- FOLDOUT 2: Ehrengast (separate, bewusste Entscheidung) -->
+          <details class="group relative z-10" ${p.guest_of_honor ? 'open' : ''}>
+            <summary class="cursor-pointer inline-flex items-center gap-2.5 list-none">
+              <div class="pulse-dot"></div>
+              <span class="font-mono-stitch text-[10px] tracking-[0.2em] text-primary uppercase hover:text-primary-container transition-colors">IST DAS FÜR JEMAND BESONDERES?</span>
+              <span class="material-symbols-outlined text-[14px] text-primary group-open:rotate-90 transition-transform">chevron_right</span>
+            </summary>
+            <div class="flex flex-col gap-3 mt-4 pl-1">
               <input id="guest_of_honor" type="text" placeholder="Name des Ehrengasts (z.B. Nino)" value="${esc(p.guest_of_honor || '')}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-on-surface font-display-stitch text-[1.2rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
               <p class="font-mono-stitch text-[9px] text-on-surface-variant/50 tracking-[0.1em] uppercase leading-relaxed">
-                WENN GESETZT: FREUNDE PRODUZIEREN DIE EINLADUNG,<br>DER EHRENGAST SIEHT DEN FILM ERST WENN DU IHN TEILST
+                Freunde produzieren die Einladung. Der Ehrengast sieht den Film<br>erst wenn du ihn teilst — keine Überraschung ruiniert.
               </p>
             </div>
-          </div>
+          </details>
 
-          ${hasPrefill ? `
-          <!-- Technical Log (Stitch decorative exact) -->
-          <div class="bg-surface-container-highest p-3 mt-2 flex items-start gap-3 relative z-10 rounded" style="border: 0.5px solid rgba(73,69,82,0.2);">
-            <span class="material-symbols-outlined text-outline text-[14px]">memory</span>
-            <div class="font-mono-stitch text-[9px] text-on-surface-variant leading-relaxed tracking-wider">
-              NLP_PARSE_SUCCESS: 0.982 CONFIDENCE<br>
-              ENTITIES_EXTRACTED: [${[p.title && 'TITLE', p.location && 'LOCATION', p.date_start && 'DATETIME', Array.isArray(p.friends) && p.friends.length && 'FRIENDS'].filter(Boolean).join(', ') || 'NONE'}]
-            </div>
-          </div>
-          ` : ''}
-
-          <!-- Final Action (Stitch exact) -->
-          <div class="pt-4 relative z-10">
-            <button id="create-btn" class="w-full bg-surface-container-high/40 backdrop-blur-[40px] text-primary-fixed-dim px-8 py-5 rounded-xl font-display-stitch font-medium text-[1.05rem] hover:bg-surface-container-high hover:text-primary transition-all duration-500 flex items-center justify-center gap-3 group" style="border: 0.5px solid rgba(73,69,82,0.5);">
-              <span>Event erstellen &amp; Link kopieren</span>
-              <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-300">arrow_forward</span>
-            </button>
-          </div>
+          <!-- Final Action -->
+          <button id="create-btn" class="w-full bg-surface-container-high/40 backdrop-blur-[40px] text-primary-fixed-dim px-8 py-5 rounded-xl font-display-stitch font-medium text-[1.05rem] hover:bg-surface-container-high hover:text-primary transition-all duration-500 flex items-center justify-center gap-3 group relative z-10" style="border: 0.5px solid rgba(73,69,82,0.5);">
+            <span>Event erstellen &amp; Link kopieren</span>
+            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform duration-300">arrow_forward</span>
+          </button>
           <div id="create-feedback" class="relative z-10"></div>
         </div>
       </section>
@@ -694,88 +700,64 @@
     const canWebShare = 'share' in navigator;
 
     $app.innerHTML = `
-      <!-- HERO: Event Header (Stitch Intima exact) -->
-      <header class="flex flex-col gap-6 fade-in">
-        <!-- Hero "Image" Panel: light leaks if no cover yet -->
-        <div class="w-full h-56 md:h-72 rounded-2xl overflow-hidden relative glass-panel" style="border-color: rgba(73,69,82,0.2);">
-          <div class="absolute inset-0 bg-gradient-to-br from-primary-container/30 via-transparent to-primary/20 opacity-60"></div>
-          <div class="absolute -top-10 -left-10 w-64 h-64 bg-primary-container/20 rounded-full blur-[80px]"></div>
-          <div class="absolute -bottom-10 -right-10 w-64 h-64 bg-primary/10 rounded-full blur-[90px]"></div>
-          <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-          ${event.guest_of_honor ? `
-          <div class="absolute bottom-6 left-6 right-6 flex flex-col gap-1">
-            <span class="font-mono-stitch text-[10px] tracking-[0.2em] text-on-surface-variant/60 uppercase">FÜR</span>
-            <span class="font-display-stitch text-4xl md:text-5xl font-bold tracking-[-0.03em] text-on-surface">${esc(event.guest_of_honor)}</span>
+      <!-- HERO: Alles in einer Karte — Meta als Overlay, kein separater Grid -->
+      <header class="flex flex-col gap-8 fade-in">
+        <div class="w-full min-h-[320px] md:min-h-[400px] rounded-[1.5rem] overflow-hidden relative glass-panel" style="border-color: rgba(73,69,82,0.2);">
+          <div class="absolute inset-0 bg-gradient-to-br from-primary-container/25 via-transparent to-primary/15 opacity-70"></div>
+          <div class="absolute -top-10 -left-10 w-80 h-80 bg-primary-container/20 rounded-full blur-[90px]"></div>
+          <div class="absolute -bottom-20 -right-10 w-80 h-80 bg-primary/12 rounded-full blur-[100px]"></div>
+          <div class="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent"></div>
+
+          <!-- Overlay Content -->
+          <div class="absolute inset-0 p-7 sm:p-10 flex flex-col justify-between">
+            <!-- Top: Label -->
+            <div class="flex items-center gap-2">
+              <div class="pulse-dot"></div>
+              <span class="font-mono-stitch text-[10px] tracking-[0.25em] text-primary uppercase">${event.guest_of_honor ? 'ÜBERRASCHUNGS-EINLADUNG' : 'KREIS EINLADUNG'}</span>
+            </div>
+
+            <!-- Bottom: Title + Inline Meta -->
+            <div class="flex flex-col gap-3">
+              ${event.guest_of_honor ? `
+                <span class="font-mono-stitch text-[10px] tracking-[0.2em] text-on-surface-variant/60 uppercase">FÜR</span>
+                <h1 class="font-display-stitch font-bold text-5xl md:text-7xl leading-[0.95] tracking-[-0.03em] mb-1">${esc(event.guest_of_honor)}</h1>
+                <p class="font-display-stitch font-medium text-lg md:text-xl text-on-surface/85 leading-tight">${esc(event.title)}</p>
+              ` : `
+                <h1 class="font-display-stitch font-extrabold text-[34px] md:text-[52px] leading-[1.05] tracking-[-0.02em]">${esc(event.title)}</h1>
+              `}
+              <!-- Inline Meta: Date · Location · Creator -->
+              <div class="flex flex-wrap gap-x-5 gap-y-1 font-mono-stitch text-[10px] tracking-[0.2em] text-on-surface-variant/70 uppercase mt-1">
+                ${event.date_start ? `<span>${esc(formatDateRange(event.date_start, event.date_end))}</span>` : ''}
+                ${event.location ? `<span>${esc(event.location)}</span>` : ''}
+                <span class="text-on-surface-variant/50">Von ${esc(event.created_by)}</span>
+                ${event.link ? `<a href="${esc(event.link)}" target="_blank" rel="noopener" class="text-primary/80 hover:text-primary inline-flex items-center gap-1 normal-case tracking-normal">
+                  <span class="material-symbols-outlined text-[12px]">link</span>
+                  <span>${esc(event.link.replace(/^https?:\/\//, '').slice(0, 22))}${event.link.length > 22 ? '…' : ''}</span>
+                </a>` : ''}
+              </div>
+            </div>
           </div>
-          ` : ''}
         </div>
-        <div class="flex flex-col gap-2">
-          <p class="font-mono-stitch text-[10px] tracking-[0.2em] text-primary uppercase">${event.guest_of_honor ? 'ÜBERRASCHUNGS-EINLADUNG' : 'KREIS EINLADUNG'}</p>
-          <h1 class="font-display-stitch font-extrabold text-[32px] md:text-[44px] leading-[1.1] tracking-[-0.02em]">${esc(event.title)}</h1>
-          <p class="font-mono-stitch text-[10px] tracking-[0.2em] text-on-surface-variant/60 uppercase mt-1">VON ${esc(event.created_by.toUpperCase())}</p>
-        </div>
+
+        ${event.note ? `
+          <p class="text-on-surface-variant italic leading-relaxed text-[0.95rem] border-l-[0.5px] border-outline-variant/20 pl-5 py-1 -mt-2">${esc(event.note)}</p>
+        ` : ''}
       </header>
 
-      ${(event.location || event.date_start || event.link) ? `
-      <!-- Meta-Grid (Stitch Intima exact) -->
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-4 fade-in">
-        ${event.date_start ? `
-        <div class="glass-panel rounded-xl p-5 flex flex-col gap-3 relative overflow-hidden group hover:bg-surface-variant/30 transition-all duration-500">
-          <span class="material-symbols-outlined text-on-surface-variant" style="font-variation-settings:'wght' 200">calendar_today</span>
-          <div class="flex flex-col">
-            <span class="font-mono-stitch text-[10px] tracking-[0.2em] text-on-surface-variant uppercase">Date</span>
-            <span class="font-display-stitch font-medium text-sm text-on-surface mt-1">${esc(formatDateRange(event.date_start, event.date_end).toUpperCase())}</span>
-          </div>
-        </div>
-        ` : ''}
-        ${event.location ? `
-        <div class="glass-panel rounded-xl p-5 flex flex-col gap-3 relative overflow-hidden group hover:bg-surface-variant/30 transition-all duration-500 ${event.date_start ? '' : 'md:col-span-2'}">
-          <span class="material-symbols-outlined text-on-surface-variant" style="font-variation-settings:'wght' 200">location_on</span>
-          <div class="flex flex-col">
-            <span class="font-mono-stitch text-[10px] tracking-[0.2em] text-on-surface-variant uppercase">Location</span>
-            <span class="font-display-stitch font-medium text-sm text-on-surface mt-1 truncate">${esc(event.location)}</span>
-          </div>
-        </div>
-        ` : ''}
-        <div class="glass-panel rounded-xl p-5 flex flex-col gap-3 relative overflow-hidden group hover:bg-surface-variant/30 transition-all duration-500">
-          <span class="material-symbols-outlined text-on-surface-variant" style="font-variation-settings:'wght' 200">group</span>
-          <div class="flex flex-col">
-            <span class="font-mono-stitch text-[10px] tracking-[0.2em] text-on-surface-variant uppercase">Dabei</span>
-            <span class="font-display-stitch font-medium text-sm text-on-surface mt-1">${counts.yes} / ${(responses || []).length} GUESTS</span>
-          </div>
-        </div>
-        ${event.link ? `
-        <a href="${esc(event.link)}" target="_blank" rel="noopener" class="glass-panel rounded-xl p-5 flex flex-col gap-3 relative overflow-hidden group hover:bg-surface-variant/30 transition-all duration-500">
-          <span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors" style="font-variation-settings:'wght' 200">link</span>
-          <div class="flex flex-col">
-            <span class="font-mono-stitch text-[10px] tracking-[0.2em] text-on-surface-variant uppercase">Link</span>
-            <span class="font-mono-stitch text-[10px] text-primary/80 mt-1 truncate">${esc(event.link.replace(/^https?:\/\//, '').slice(0, 24))}</span>
-          </div>
-        </a>
-        ` : ''}
-      </section>
-      ` : ''}
-
-      ${event.note ? `
-      <section class="fade-in border-l-[0.5px] border-outline-variant/20 pl-6 py-3">
-        <p class="text-on-surface-variant italic leading-relaxed text-[0.95rem]">${esc(event.note)}</p>
-      </section>
-      ` : ''}
-
-      <!-- Vote-Section (Stitch Intima exact) -->
-      <section class="flex flex-col gap-6 pt-4 fade-in">
-        <h2 class="font-display-stitch font-medium text-lg tracking-tight text-on-surface opacity-90">Bist du dabei?</h2>
+      <!-- Vote-Section: kein Mono-Label, einfach direkte Headline -->
+      <section class="flex flex-col gap-5 fade-in">
+        <h2 class="font-display-stitch font-medium text-xl tracking-tight text-on-surface">Bist du dabei?</h2>
         <input id="my-name" type="text" placeholder="Dein Name…" value="${esc(me)}" class="liquid-input w-full bg-transparent border-0 border-b-[0.5px] border-outline-variant/50 text-on-surface font-display-stitch text-[1.1rem] py-2 px-0 focus:ring-0 focus:border-primary transition-all duration-300">
         <div class="flex flex-col md:flex-row gap-3" role="radiogroup" aria-label="Deine Antwort">
-          <button role="radio" aria-label="Ich bin dabei" aria-checked="${myResp?.response === 'yes' ? 'true' : 'false'}" class="liquid-button vote-btn flex-1 py-5 rounded-xl ${myResp?.response === 'yes' ? 'glow-selected' : 'glass-panel text-on-surface-variant hover:text-on-surface'} flex justify-center items-center gap-2.5 group" data-vote="yes">
+          <button role="radio" aria-label="Ich bin dabei" aria-checked="${myResp?.response === 'yes' ? 'true' : 'false'}" class="liquid-button vote-btn flex-1 py-5 rounded-xl ${myResp?.response === 'yes' ? 'glow-selected' : 'glass-panel text-on-surface-variant hover:text-on-surface'} flex justify-center items-center gap-2.5" data-vote="yes">
             <span class="font-mono-stitch text-xs tracking-[0.1em] uppercase font-medium">Dabei</span>
             ${myResp?.response === 'yes' ? '<span class="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(206,189,255,0.8)]"></span>' : ''}
           </button>
-          <button role="radio" aria-label="Vielleicht" aria-checked="${myResp?.response === 'maybe' ? 'true' : 'false'}" class="liquid-button vote-btn flex-1 py-5 rounded-xl ${myResp?.response === 'maybe' ? 'glow-selected' : 'glass-panel text-on-surface-variant hover:text-on-surface'} flex justify-center items-center gap-2.5 group" data-vote="maybe">
+          <button role="radio" aria-label="Vielleicht" aria-checked="${myResp?.response === 'maybe' ? 'true' : 'false'}" class="liquid-button vote-btn flex-1 py-5 rounded-xl ${myResp?.response === 'maybe' ? 'glow-selected' : 'glass-panel text-on-surface-variant hover:text-on-surface'} flex justify-center items-center gap-2.5" data-vote="maybe">
             <span class="font-mono-stitch text-xs tracking-[0.1em] uppercase font-medium">Vielleicht</span>
             ${myResp?.response === 'maybe' ? '<span class="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(206,189,255,0.8)]"></span>' : ''}
           </button>
-          <button role="radio" aria-label="Nicht dabei" aria-checked="${myResp?.response === 'no' ? 'true' : 'false'}" class="liquid-button vote-btn flex-1 py-5 rounded-xl ${myResp?.response === 'no' ? 'glow-selected' : 'glass-panel text-on-surface-variant hover:text-on-surface'} flex justify-center items-center gap-2.5 group" data-vote="no">
+          <button role="radio" aria-label="Nicht dabei" aria-checked="${myResp?.response === 'no' ? 'true' : 'false'}" class="liquid-button vote-btn flex-1 py-5 rounded-xl ${myResp?.response === 'no' ? 'glow-selected' : 'glass-panel text-on-surface-variant hover:text-on-surface'} flex justify-center items-center gap-2.5" data-vote="no">
             <span class="font-mono-stitch text-xs tracking-[0.1em] uppercase font-medium">Nicht dabei</span>
             ${myResp?.response === 'no' ? '<span class="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_rgba(206,189,255,0.8)]"></span>' : ''}
           </button>
@@ -784,67 +766,53 @@
         <div id="vote-feedback"></div>
       </section>
 
-      <!-- Attendees (Stitch Intima exact) -->
-      <section class="flex flex-col gap-6 pt-8 fade-in" style="border-top: 0.5px solid rgba(73,69,82,0.1);">
-        <h2 class="font-display-stitch font-medium text-lg tracking-tight text-on-surface flex items-center justify-between">
+      <!-- Attendees: direkte Headline mit Counter -->
+      ${responses && responses.length > 0 ? `
+      <section class="flex flex-col gap-4 fade-in">
+        <h2 class="font-display-stitch font-medium text-xl tracking-tight text-on-surface flex items-center justify-between">
           <span>Wer ist am Start</span>
-          <span class="font-mono-stitch text-[10px] text-surface-tint opacity-70 tracking-widest">${counts.yes} CONFIRMED</span>
+          <span class="font-mono-stitch text-[10px] text-primary/70 opacity-80 tracking-[0.25em]">${counts.yes} · ${counts.maybe} · ${counts.no}</span>
         </h2>
-        ${responses && responses.length > 0 ? `
-          <div class="flex flex-col gap-3">
-            ${responses.map(r => `
-              <div class="glass-panel rounded-2xl p-4 flex items-center justify-between group hover:bg-surface-container-high/30 transition-colors duration-500">
-                <div class="flex items-center gap-4">
-                  <div class="w-12 h-12 rounded-full overflow-hidden relative flex items-center justify-center bg-surface-container-highest/50" style="border: 0.5px solid rgba(73,69,82,0.4);">
-                    <div class="absolute inset-0 bg-primary/20 mix-blend-overlay z-10"></div>
-                    <span class="font-display-stitch font-medium text-sm text-primary relative z-20">${esc(initials(r.user_name))}</span>
-                  </div>
-                  <div class="flex flex-col">
-                    <span class="font-display-stitch font-medium text-sm text-on-surface">${esc(r.user_name)}</span>
-                    ${r.note ? `<span class="font-mono-stitch text-[10px] text-on-surface-variant tracking-wider mt-0.5 italic normal-case">${esc(r.note)}</span>` : ''}
-                  </div>
+        <div class="flex flex-col gap-2.5">
+          ${responses.map(r => `
+            <div class="glass-panel rounded-xl p-3.5 flex items-center justify-between group hover:bg-surface-container-high/30 transition-colors duration-500">
+              <div class="flex items-center gap-3.5">
+                <div class="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center bg-surface-container-highest/50" style="border: 0.5px solid rgba(73,69,82,0.4);">
+                  <div class="absolute inset-0 bg-primary/20 mix-blend-overlay z-10"></div>
+                  <span class="font-display-stitch font-medium text-sm text-primary relative z-20">${esc(initials(r.user_name))}</span>
                 </div>
-                <div class="text-2xl filter drop-shadow-[0_0_8px_rgba(255,255,255,0.15)]">${r.response === 'yes' ? '🔥' : r.response === 'maybe' ? '⚡️' : '🌒'}</div>
+                <div class="flex flex-col">
+                  <span class="font-display-stitch font-medium text-sm text-on-surface">${esc(r.user_name)}</span>
+                  ${r.note ? `<span class="font-mono-stitch text-[10px] text-on-surface-variant/60 mt-0.5 italic normal-case tracking-wide">${esc(r.note)}</span>` : ''}
+                </div>
               </div>
-            `).join('')}
-          </div>
-        ` : `
-          <div class="glass-panel rounded-2xl p-6 text-center">
-            <p class="font-mono-stitch text-[10px] text-on-surface-variant/50 tracking-[0.2em] uppercase">— NOCH NIEMAND —</p>
-          </div>
-        `}
+              <div class="text-xl filter drop-shadow-[0_0_8px_rgba(255,255,255,0.12)]">${r.response === 'yes' ? '🔥' : r.response === 'maybe' ? '⚡️' : '🌒'}</div>
+            </div>
+          `).join('')}
+        </div>
       </section>
+      ` : ''}
 
-      <!-- Hidden share handles kept for logic, real UI is sticky pill at bottom -->
-      <section class="flex flex-col gap-3 fade-in">
-        <div class="flex items-center gap-4 pl-2">
-          <div class="w-2 h-2 rounded-full bg-tertiary shadow-[0_0_12px_rgba(219,200,57,0.6)]"></div>
-          <h3 class="font-mono-stitch text-[11px] uppercase tracking-[0.2em] text-on-surface-variant">Link teilen</h3>
-        </div>
-        <div class="glass-panel rounded-full p-2 pl-5 flex items-center gap-3">
-          <code class="flex-1 overflow-hidden px-1 py-1 font-mono-stitch text-[10px] text-on-surface-variant/70 truncate">${esc(url)}</code>
-          <button id="copy-btn" class="glass-pill hover:bg-surface-container-high/40 font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface uppercase px-4 py-2 transition-colors">KOPIEREN</button>
-        </div>
-        <a id="whatsapp-btn" href="${esc(buildWhatsAppUrl(event, url))}" target="_blank" rel="noopener" class="w-full bg-[#25D366] hover:brightness-110 text-white font-display-stitch font-medium rounded-full py-4 px-6 transition-all flex items-center justify-center gap-3 liquid-button">
-          <span class="material-symbols-outlined text-[18px]">chat</span>
-          <span class="font-mono-stitch text-[11px] tracking-[0.2em] uppercase">Via WhatsApp teilen</span>
-        </a>
-        <div class="grid grid-cols-2 gap-2">
-          <button id="ics-btn" class="glass-pill hover:bg-surface-container-high/40 py-3 px-4 transition-colors flex items-center justify-center gap-2">
-            <span class="material-symbols-outlined text-[16px] text-on-surface-variant">calendar_add_on</span>
-            <span class="font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface uppercase">KALENDER</span>
+      <!-- Hidden full share section (ICS + web-share + WhatsApp fallback) — sticky pill shows main CTAs -->
+      <section class="flex flex-col gap-2 fade-in opacity-80 -mt-2">
+        <div class="flex flex-wrap gap-2">
+          <a href="${esc(buildWhatsAppUrl(event, url))}" target="_blank" rel="noopener" class="flex-1 min-w-[140px] bg-[#25D366]/90 hover:bg-[#25D366] text-white rounded-full py-2.5 px-4 transition-all flex items-center justify-center gap-2 liquid-button">
+            <span class="material-symbols-outlined text-[16px]">chat</span>
+            <span class="font-mono-stitch text-[10px] tracking-[0.15em] uppercase">WhatsApp</span>
+          </a>
+          <button id="ics-btn" class="glass-pill hover:bg-surface-container-high/40 py-2.5 px-4 transition-colors flex items-center gap-2">
+            <span class="material-symbols-outlined text-[14px] text-on-surface-variant">calendar_add_on</span>
+            <span class="font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface uppercase">.ICS</span>
+          </button>
+          <button id="copy-btn" class="glass-pill hover:bg-surface-container-high/40 py-2.5 px-4 transition-colors flex items-center gap-2">
+            <span class="material-symbols-outlined text-[14px] text-on-surface-variant">link</span>
+            <span class="font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface uppercase">LINK</span>
           </button>
           ${canWebShare ? `
-            <button id="share-btn" class="glass-pill hover:bg-surface-container-high/40 py-3 px-4 transition-colors flex items-center justify-center gap-2">
-              <span class="material-symbols-outlined text-[16px] text-on-surface-variant">ios_share</span>
-              <span class="font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface uppercase">TEILEN</span>
-            </button>
-          ` : `
-            <a href="?" class="glass-pill hover:bg-surface-container-high/40 py-3 px-4 transition-colors flex items-center justify-center gap-2">
-              <span class="material-symbols-outlined text-[16px] text-on-surface-variant">add</span>
-              <span class="font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface uppercase">NEU</span>
-            </a>
-          `}
+          <button id="share-btn" class="glass-pill hover:bg-surface-container-high/40 py-2.5 px-4 transition-colors flex items-center gap-2">
+            <span class="material-symbols-outlined text-[14px] text-on-surface-variant">ios_share</span>
+            <span class="font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface uppercase">TEILEN</span>
+          </button>` : ''}
         </div>
       </section>
 
@@ -909,102 +877,18 @@
         <div id="v3-action-feedback" class="w-full"></div>
       </section>
 
-      <!-- Expert-Mode: Classic AI-Composer (Foldout) -->
-      <details class="fade-in group">
-        <summary class="cursor-pointer glass-pill px-5 py-3 font-tech text-[10px] text-on-surface-variant/60 uppercase tracking-[0.15em] hover:text-primary transition-colors inline-flex items-center gap-2 list-none">
-          <span class="material-symbols-outlined text-[14px] group-open:rotate-90 transition-transform">chevron_right</span>
-          <span>EXPERT_MODE · MANUELLER COMPOSER + FILM-VIEWER</span>
-        </summary>
-        <div class="mt-6 flex flex-col gap-5">
-
-          <section class="glass-panel rounded-2xl p-6 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-[0.5px] bg-gradient-to-r from-primary via-primary-container to-transparent opacity-60"></div>
-            <div class="flex items-center gap-3 mb-2">
-              <div class="pulse-dot"></div>
-              <span class="font-tech text-[10px] text-primary tracking-[0.2em] uppercase">AI_EINLADUNG · MANUAL_TRIGGER</span>
-            </div>
-            <p class="font-tech text-[10px] text-on-surface-variant/60 uppercase tracking-[0.1em] mb-4">Claude + 4× Gemini Pro Image parallel</p>
-
-            <div id="guests-list" class="flex flex-col gap-3"></div>
-
-            <button id="add-guest-btn" class="w-full mt-3 glass-pill hover:bg-surface-container-high/40 py-2.5 px-4 transition-colors flex items-center justify-center gap-2">
-              <span class="material-symbols-outlined text-[16px]">person_add</span>
-              <span class="font-tech text-[10px] tracking-[0.15em] uppercase">WEITEREN GAST HINZUFÜGEN</span>
-            </button>
-
-            <button id="compose-btn" class="w-full mt-4 glass-panel hover:border-primary/50 text-primary rounded-xl py-4 transition-all flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed" disabled>
-              <span class="material-symbols-outlined text-[18px]" style="font-variation-settings:'FILL' 1">auto_awesome</span>
-              <span id="compose-btn-text" class="font-tech text-[11px] tracking-[0.2em] uppercase">ERST MIND. 1 FOTO HOCHLADEN</span>
-            </button>
-
-            <div id="compose-feedback" class="mt-3"></div>
-            <div id="compose-result" class="mt-4"></div>
-          </section>
-
-          <section class="glass-panel rounded-2xl p-6 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-[0.5px] bg-gradient-to-r from-[#f59e0b] via-[#ef4444] to-transparent opacity-60"></div>
-            <div class="flex items-center gap-3 mb-2">
-              <div class="pulse-dot" style="background:#f59e0b;box-shadow:0 0 10px rgba(245,158,11,0.5)"></div>
-              <span class="font-tech text-[10px] text-[#f59e0b] tracking-[0.2em] uppercase">EINLADUNGS_SONG · CLAUDE + SUNO_V4</span>
-            </div>
-            <p class="font-tech text-[10px] text-on-surface-variant/60 uppercase tracking-[0.1em] mb-4">Personalisierte Lyrics aus Event + Gästen</p>
-
-            <label class="flex flex-col gap-2 mb-4">
-              <span class="font-tech text-[10px] text-outline tracking-[0.2em] uppercase">STYLE_HINT (OPTIONAL)</span>
-              <input id="style-hint-input" type="text" placeholder="z.B. Punk Rock, lustig, 150 BPM" class="liquid-input w-full py-2 px-0 text-sm">
-            </label>
-
-            <button id="song-btn" class="w-full glass-panel hover:border-[#f59e0b]/50 rounded-xl py-4 transition-all flex items-center justify-center gap-3">
-              <span class="material-symbols-outlined text-[#f59e0b] text-[18px]">music_note</span>
-              <span id="song-btn-text" class="font-tech text-[11px] tracking-[0.2em] uppercase text-[#f59e0b]">SONG-LYRICS GENERIEREN</span>
-            </button>
-            <div id="song-feedback" class="mt-3"></div>
-            <div id="song-result" class="mt-4"></div>
-          </section>
-
-          <section class="glass-panel rounded-2xl p-6 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-[0.5px] bg-gradient-to-r from-[#06b6d4] via-[#8b5cf6] to-transparent opacity-60"></div>
-            <div class="flex items-center gap-3 mb-2">
-              <div class="pulse-dot" style="background:#06b6d4;box-shadow:0 0 10px rgba(6,182,212,0.5)"></div>
-              <span class="font-tech text-[10px] text-[#06b6d4] tracking-[0.2em] uppercase">EINLADUNGS_FILM · SLIDESHOW + MP4</span>
-            </div>
-            <p class="font-tech text-[10px] text-on-surface-variant/60 uppercase tracking-[0.1em] mb-4">Ken-Burns-Slideshow aus Scenes + Song</p>
-
-            <div id="film-status"></div>
-            <div id="film-player" class="hidden"></div>
-
-            <button id="film-btn" class="w-full glass-panel hover:border-[#06b6d4]/50 rounded-xl py-4 transition-all flex items-center justify-center gap-3 disabled:opacity-40 disabled:cursor-not-allowed">
-              <span class="material-symbols-outlined text-[#06b6d4] text-[18px]" style="font-variation-settings:'FILL' 1">play_circle</span>
-              <span id="film-btn-text" class="font-tech text-[11px] tracking-[0.2em] uppercase text-[#06b6d4]">FILM ABSPIELEN</span>
-            </button>
-
-            <div id="film-actions" class="mt-3 hidden">
-              <div class="grid grid-cols-2 gap-2">
-                <button id="film-share-btn" class="glass-pill hover:bg-surface-container-high/40 py-2.5 px-3 transition-colors flex items-center justify-center gap-1.5">
-                  <span class="material-symbols-outlined text-[14px] text-[#06b6d4]">share</span>
-                  <span class="font-tech text-[9px] tracking-[0.15em] text-[#06b6d4] uppercase">LINK TEILEN</span>
-                </button>
-                <button id="film-export-btn" class="glass-pill hover:bg-surface-container-high/40 py-2.5 px-3 transition-colors flex items-center justify-center gap-1.5">
-                  <span class="material-symbols-outlined text-[14px] text-on-surface-variant">movie</span>
-                  <span class="font-tech text-[9px] tracking-[0.15em] text-on-surface-variant uppercase">MP4 EXPORT</span>
-                </button>
-              </div>
-            </div>
-          </section>
-
-          <section class="flex flex-wrap gap-2">
-            <button id="edit-btn" class="glass-pill hover:bg-surface-container-high/40 px-5 py-3 transition-colors flex items-center gap-2">
-              <span class="material-symbols-outlined text-[16px] text-on-surface-variant">edit</span>
-              <span class="font-tech text-[10px] tracking-[0.15em] text-on-surface uppercase">EVENT BEARBEITEN</span>
-            </button>
-            <button id="delete-btn" class="glass-pill hover:bg-error/20 px-5 py-3 transition-colors flex items-center gap-2 text-error">
-              <span class="material-symbols-outlined text-[16px]">delete</span>
-              <span class="font-tech text-[10px] tracking-[0.15em] uppercase">LÖSCHEN</span>
-            </button>
-          </section>
-          <div id="action-feedback"></div>
-        </div>
-      </details>
+      <!-- Owner: nur noch Edit + Delete als kleine Aktionen unten -->
+      <section class="flex flex-wrap gap-2 justify-end mt-4 fade-in opacity-60 hover:opacity-100 transition-opacity">
+        <button id="edit-btn" class="glass-pill hover:bg-surface-container-high/40 px-4 py-2 transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-[14px] text-on-surface-variant">edit</span>
+          <span class="font-mono-stitch text-[10px] tracking-[0.15em] text-on-surface-variant uppercase">BEARBEITEN</span>
+        </button>
+        <button id="delete-btn" class="glass-pill hover:bg-error/20 px-4 py-2 transition-colors flex items-center gap-2 text-error/80">
+          <span class="material-symbols-outlined text-[14px]">delete</span>
+          <span class="font-mono-stitch text-[10px] tracking-[0.15em] uppercase">LÖSCHEN</span>
+        </button>
+        <div id="action-feedback" class="w-full"></div>
+      </section>
       ` : ''}
     `;
 
@@ -1017,12 +901,51 @@
 
     if (owned) {
       initV3Dashboard(event, responses || []);
-      initComposer(event);
-      initSongSection(event);
-      initFilmSection(event);
+      if (document.getElementById('guests-list')) initComposer(event);
+      if (document.getElementById('song-btn')) initSongSection(event);
+      if (document.getElementById('film-btn')) initFilmSection(event);
     }
 
+    // Sticky Share Pill aktivieren (nur für Event-Detail)
+    showStickyShare(event, url);
+
     if (!silent) scheduleRefresh(event);
+  }
+
+  function showStickyShare(event, url) {
+    const pill = document.getElementById('sticky-share-pill');
+    if (!pill) return;
+    pill.classList.remove('hidden');
+    const label = document.getElementById('sticky-share-label');
+    if (label) label.textContent = event.title;
+    const copyBtn = document.getElementById('sticky-share-copy');
+    if (copyBtn) {
+      copyBtn.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(url);
+          copyBtn.innerHTML = '<span class="material-symbols-outlined text-[18px] text-primary">check</span>';
+          setTimeout(() => { copyBtn.innerHTML = '<span class="material-symbols-outlined text-[18px]" style="font-variation-settings:\'wght\' 300">link</span>'; }, 1500);
+        } catch {}
+      };
+    }
+    const actionBtn = document.getElementById('sticky-share-action');
+    if (actionBtn) {
+      actionBtn.onclick = async () => {
+        if ('share' in navigator) {
+          try {
+            await navigator.share({ title: event.title, text: event.title, url });
+          } catch {}
+        } else {
+          // Fallback: WhatsApp
+          window.open(buildWhatsAppUrl(event, url), '_blank', 'noopener');
+        }
+      };
+    }
+  }
+
+  function hideStickyShare() {
+    const pill = document.getElementById('sticky-share-pill');
+    if (pill) pill.classList.add('hidden');
   }
 
   // ============================
@@ -2199,6 +2122,7 @@
   const AUTO_RENDER_URL = `${SUPABASE_URL}/functions/v1/kreis-auto-render`;
 
   async function renderHonoree(token) {
+    hideStickyShare();
     $app.innerHTML = `
       <div class="fixed inset-0 flex items-center justify-center">
         <div class="glass-panel rounded-full px-6 py-3 font-tech text-[11px] text-primary uppercase">FETCHING_INVITATION...</div>
@@ -2382,6 +2306,7 @@
   const WIZARD_STEPS = ['rsvp', 'name', 'photo', 'story', 'rendering', 'done'];
 
   async function renderWizard(event) {
+    hideStickyShare();
     // State — persisted in sessionStorage to survive reload during wizard
     const key = `kreis_wizard_${event.id}`;
     let state = {};
