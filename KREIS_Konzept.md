@@ -50,7 +50,7 @@ Diese beiden Flows teilen sich eine UI → Überladung. Fünf unterschiedliche S
 - **URL:** https://1gassner.github.io/kreis/
 - **Repo:** https://github.com/1gassner/kreis (public, MIT)
 - **Backend:** Supabase `sgsufdxggvfgejwiclot` (eu-west-1)
-- **Aktueller Commit:** `add94fb`
+- **Aktueller Commit:** `2b7cf4f` (Bug-Fix-Pass)
 
 ### Features V1 (MVP, 18.04.2026 Nachmittag)
 
@@ -284,6 +284,8 @@ Aber: **ein überfrachtetes Tool nutzt auch kein Freund.** Entscheidung morgen (
 ## Commit-Historie (letzte 10)
 
 ```
+2b7cf4f  fix(ui): 5 bug fixes — stale event, closed foldouts, blob-preview, poll-leak, stale-refresh
+acb491f  docs: full update end of day 19.04.2026 — V3 state + open UX decision for tomorrow
 add94fb  refactor(ux): 3 userflow-fixes — owner-first, one-primary-share, honest wizard-wait
 9f9fa1b  refactor(ui): Clarity pass — Hero-Overlay, 1 label/screen, progressive disclosure, sticky share
 2db3ea1  refactor(ui): Full redesign — Stitch V1 "Intima" + V2 "Celestial Void" 1:1
@@ -292,6 +294,16 @@ a4be294  fix(round-3): RLS completeness + callback fallback + empty-lyrics guard
 38a91a1  perf+a11y+docs: round-2 review fixes + V3 session prompt
 d28716c  refactor+docs: full code review fixes + kind-standardization + legacy cleanup + docs
 f3221b7  feat(film): HTML5 Slideshow + Ken-Burns + Share-Link + MP4-Export via ffmpeg.wasm
-f30cf4e  feat(song): Audio-Player + Cover + Polling + Alt-Variante
-a8f0aae  fix(song): Claude model-string + JSON parser + Identity-Score-Badges
 ```
+
+## Bug-Fix-Pass (19.04.2026 spät abends, Commit 2b7cf4f)
+
+Vor dem Schlafen noch 5 kritische Bugs via Code-Review gefixed:
+
+1. **Stale event in Render-Trigger** — `setTimeout(() => loadAndRenderEventView(event), 3000)` nutzte gecachtes event-Object, UI zeigte render_count=0 nach Trigger. Fix: refetch vor reload.
+2. **Create-Foldouts closed bei parsed values** — User sah nicht dass Claude location/link/note erkannt hat. Fix: `<details open>` wenn Werte da + Inline-Badge welche Felder.
+3. **Wizard Photo `blob://` Preview** — Session-Reload → broken image (blob ungültig). Fix: signed URL (1h TTL) aus Supabase Storage.
+4. **pollWizardProgress Memory-Leak** — jedes Wizard-Re-Render spawnte neuen setInterval ohne alten zu clearen → N parallele Polls nach N Renders. Fix: `_wizardPollInterval` + `_wizardPollSafetyTimeout` global, `stopWizardPoll()` clear beides.
+5. **scheduleRefresh stale event** — 8s-Gast-Auto-Refresh rief `loadAndRenderEventView(event)` mit altem event-Object → Owner-Edits (Title/Datum/Ort) wurden nicht propagiert. Fix: refetch event in interval.
+
+**Nicht via Preview-Tool getestet** (macOS-Sandbox blockt `python3 -m http.server --directory`). `.claude/launch.json` existiert für zukünftige Sessions aber läuft aktuell nicht.

@@ -21,7 +21,7 @@ Tool für engen Freundeskreis — gemeinsam entscheiden, ob wir zu einem Event g
 - **Live:** https://1gassner.github.io/kreis/
 - **Repo:** https://github.com/1gassner/kreis
 - **Backend:** Supabase `sgsufdxggvfgejwiclot` (eu-west-1)
-- **Aktueller Commit:** `add94fb`
+- **Aktueller Commit:** `2b7cf4f` (Bug-Fix-Pass nach `acb491f` Docs-Update)
 - **Test-Event (Prodigy Stuttgart):** https://1gassner.github.io/kreis/?event=bb6b7f8b-c3fe-4596-ada5-b768f9256dd4
 
 ## 🔴 HAUPTFRAGE MORGEN
@@ -78,6 +78,8 @@ Diese beiden Flows teilen sich eine UI → Überladung. Gäste kriegen beim Öff
 2. `2db3ea1` — **refactor(ui)** — Full Redesign Stitch V1 "Intima" + V2 "Celestial Void" 1:1
 3. `9f9fa1b` — **refactor(ui)** — Clarity Pass: Hero-Overlay, 1 Label/Screen, Progressive Disclosure, Sticky Share
 4. `add94fb` — **refactor(ux)** — 3 Userflow-Fixes: Owner-first, One-Primary-Share, Honest Wizard-Wait
+5. `acb491f` — **docs** — Full doc update + open UX decision
+6. `2b7cf4f` — **fix(ui)** — 5 Bug-Fixes: stale event, closed foldouts, blob-preview, poll-leak, stale-refresh
 
 **Was im Code ist:**
 - Celestial-Void Design-System (Inter Tight + JetBrains Mono, Glass-Panels, Light-Leaks)
@@ -142,11 +144,27 @@ Bei Option B (Film raus): großflächiger Revert des V3-Frontend-Codes, Backend 
 
 Bei Option C: je nach Diagnose.
 
-## Bekannte Offene Enden
+## 🐛 Bug-Fix-Pass (Commit 2b7cf4f, heute spät abends)
 
-- **E2E-Test mit echtem Foto-Upload** noch nie durchgespielt (Gate-Test gestern ging bis auto-render, aber ohne Face → `no_faces_uploaded`).
+Vor dem Schlafen noch 5 Bugs via Code-Review gefixed:
+
+| # | Bug | Symptom | Fix |
+|---|---|---|---|
+| 1 | Stale event in Render-Trigger | Nach "FILM ERSTELLEN" zeigte UI weiter `render_count=0` | `setTimeout` refetcht event aus DB |
+| 2 | Create-Foldouts closed | User sah nicht dass Claude Location/Link/Note erkannt hat | Auto-`open` + Inline-Badge `+ ORT + LINK` |
+| 3 | Wizard Photo `blob://` Preview | Session-Reload → kaputtes Bild | Signed URL (1h TTL) statt Blob |
+| 4 | Memory-Leak: Mehrfache Polls | Jedes Wizard-Re-Render spawnte neuen Poll | Globaler `_wizardPollInterval`-Tracker + `stopWizardPoll()` |
+| 5 | Stale event in Auto-Refresh | Gast sah Owner-Edits nie bis Hard-Reload | `scheduleRefresh` refetcht event im Interval |
+
+**Nicht via Preview-Tool getestet** (macOS-Sandbox blockt `python3 -m http.server --directory`), sondern via Code-Review + JS-Syntax-Check.
+
+## Bekannte Offene Enden (nicht behoben)
+
+- **E2E-Test mit echtem Foto-Upload** noch nie durchgespielt.
 - **Render-Limit-Test** (was passiert bei Render #4?) unverifiziert.
-- **Honoree-View** wurde smoke-getestet mit Prodigy-Token, Film autoplay nicht im Browser verifiziert.
+- **iOS Safari Autoplay** auf Honoree-View nicht im echten Gerät getestet.
+- **Edge-Function combos** mit `render_count=3` (Limit-Reached-Screen) unverifiziert.
+- **Preview-Tool** (`mcp__Claude_Preview__preview_start`) bleibt durch macOS-Sandbox für dev-time blockiert — `.claude/launch.json` existiert aber kann nicht laufen. Alternativen: live GitHub Pages URL + Chrome-MCP, oder lokaler `python3 -m http.server` mit `dangerouslyDisableSandbox`.
 
 ## Wichtige Supabase-Project-ID
 
